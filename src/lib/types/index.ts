@@ -6,6 +6,19 @@
 
 // Export commonly used schema types
 import type { components, operations } from './api';
+import type { ContentSearchParams } from './contents';
+
+export type {
+  ContentGenre,
+  ContentSearchParams,
+  ContentSort,
+  ContentSportType,
+  ContentSummaryResponse,
+  ContentSummaryType,
+  ContentTag,
+  ContentTypeFilter,
+  CursorResponseContentSummary,
+} from './contents';
 
 // User types
 export type UserDto = components['schemas']['UserDto'];
@@ -102,7 +115,7 @@ export type NotificationLevel = 'INFO' | 'WARNING' | 'ERROR';
 export type FindUsersParams = operations['findUsers']['parameters']['query'];
 
 // Content query params
-export type FindContentsParams = operations['findContents']['parameters']['query'];
+export type FindContentsParams = ContentSearchParams;
 
 // Playlist query params
 export type FindPlaylistsParams = operations['findPlaylists']['parameters']['query'];

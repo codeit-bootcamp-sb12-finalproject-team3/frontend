@@ -7,7 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { createContent, updateContent } from '@/lib/api/contents';
 import useContentStore from '@/lib/stores/useContentStore';
-import type { ContentDto, ContentType, ContentCreateRequest, ContentUpdateRequest } from '@/lib/types';
+import type {
+  ContentCreateRequest,
+  ContentDto,
+  ContentSummaryResponse,
+  ContentType,
+  ContentUpdateRequest,
+} from '@/lib/types';
 import icX from '@/assets/ic_X.svg';
 
 const ContentTypeLabel: Record<ContentType, string> = {
@@ -20,7 +26,7 @@ interface ContentFormDialogProps {
   mode: 'create' | 'edit';
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialData?: ContentDto;
+  initialData?: ContentDto | ContentSummaryResponse;
 }
 
 export default function ContentFormDialog({ mode, open, onOpenChange, initialData }: ContentFormDialogProps) {
@@ -38,8 +44,8 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
     if (mode === 'edit' && initialData) {
       setTitle(initialData.title);
       setDescription(initialData.description || '');
-      setType(initialData.type);
-      setTagList(initialData.tags || []);
+      setType(initialData.type === 'tvSeason' ? 'tvSeries' : initialData.type);
+      setTagList(initialData.tags.map((tag) => typeof tag === 'string' ? tag : tag.name));
       setTagInput('');
       setThumbnailPreview(initialData.thumbnailUrl || '');
     } else {
@@ -116,10 +122,10 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
         };
 
         // Call API
-        const newContent = await createContent(data, thumbnail!);
+        await createContent(data, thumbnail!);
 
         // Sync store
-        useContentStore.getState().add(newContent);
+        await useContentStore.getState().fetch();
 
         toast.success('콘텐츠가 등록되었습니다.');
         onOpenChange(false);
@@ -132,10 +138,10 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
         };
 
         // Call API
-        const updatedContent = await updateContent(initialData!.id, data, thumbnail || undefined);
+        await updateContent(initialData!.id, data, thumbnail || undefined);
 
         // Sync store
-        useContentStore.getState().update(initialData!.id, updatedContent);
+        await useContentStore.getState().fetch();
 
         toast.success('콘텐츠가 수정되었습니다.');
         onOpenChange(false);

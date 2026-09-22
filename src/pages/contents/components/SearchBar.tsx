@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import icSearch from '@/assets/ic_search.svg';
 
 interface SearchBarProps {
@@ -8,9 +8,17 @@ interface SearchBarProps {
 
 export default function SearchBar({ onSearch, placeholder = '검색어를 입력하세요' }: SearchBarProps) {
   const [value, setValue] = useState('');
+  const lastSubmittedValue = useRef('');
+  const initialRender = useRef(true);
 
   useEffect(() => {
+    if (initialRender.current) {
+      initialRender.current = false;
+      return;
+    }
     const timer = setTimeout(() => {
+      if (lastSubmittedValue.current === value) return;
+      lastSubmittedValue.current = value;
       onSearch(value);
     }, 300);
 
@@ -19,6 +27,8 @@ export default function SearchBar({ onSearch, placeholder = '검색어를 입력
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      if (lastSubmittedValue.current === value) return;
+      lastSubmittedValue.current = value;
       onSearch(value);
     }
   };
@@ -28,6 +38,7 @@ export default function SearchBar({ onSearch, placeholder = '검색어를 입력
       <input
         type="text"
         value={value}
+        maxLength={100}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}

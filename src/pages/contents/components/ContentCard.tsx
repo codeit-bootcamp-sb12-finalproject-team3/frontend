@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import type {ContentDto, ContentType} from '@/lib/types';
+import type { ContentSummaryResponse, ContentSummaryType } from '@/lib/types';
 import icStarFull from '@/assets/ic_star_full.svg';
 import icMeatball from '@/assets/ic_meatball.svg';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
@@ -16,14 +16,14 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 
-const ContentTypeLabel: Record<ContentType, string> = {
+const ContentTypeLabel: Record<ContentSummaryType, string> = {
   movie: '영화',
-  tvSeries: 'TV 시리즈',
+  tvSeason: 'TV 시즌',
   sport: '스포츠',
 }
 
 interface ContentCardProps {
-  content: ContentDto;
+  content: ContentSummaryResponse;
 }
 
 export default function ContentCard({ content }: ContentCardProps) {
@@ -93,6 +93,8 @@ export default function ContentCard({ content }: ContentCardProps) {
     }
   };
 
+  const categoryLabels = [...content.genres, ...content.tags];
+
   return (
     <>
       <div
@@ -112,20 +114,16 @@ export default function ContentCard({ content }: ContentCardProps) {
             alt={content.title}
             className="w-full h-full object-contain"
             onLoad={() => setImageLoaded(true)}
+            onError={(event) => {
+              if (!event.currentTarget.src.includes('/placeholder-movie.png')) {
+                event.currentTarget.src = '/placeholder-movie.png';
+              }
+              setImageLoaded(true);
+            }}
           />
 
           {/* Dark Overlay */}
           <div className="absolute inset-0 bg-black/20" />
-
-          {/* Live Viewer Count Badge */}
-          {content.watcherCount && content.watcherCount > 0 && (
-            <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-2 rounded-full bg-black/70">
-              <div className="w-2 h-2 rounded-full bg-[#ff0b0b]" />
-              <span className="text-body3-sb text-white leading-none">
-                {content.watcherCount.toLocaleString()}
-              </span>
-            </div>
-          )}
 
           {/* Admin Menu Button */}
           {isAdmin && (
@@ -184,36 +182,34 @@ export default function ContentCard({ content }: ContentCardProps) {
       </div>
 
       {/* Category Tags */}
-      {content.tags && content.tags.length > 0 && (
+      <div
+        ref={tagScrollRef}
+        onClick={e => e.stopPropagation()}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUpOrLeave}
+        onMouseLeave={handleMouseUpOrLeave}
+        className="flex gap-1.5 items-center overflow-x-auto scrollbar-hide cursor-grab select-none"
+      >
         <div
-          ref={tagScrollRef}
-          onClick={e => e.stopPropagation()}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUpOrLeave}
-          onMouseLeave={handleMouseUpOrLeave}
-          className="flex gap-1.5 items-center overflow-x-auto scrollbar-hide cursor-grab select-none"
+            key={'type'}
+            className="px-2 py-1 rounded-full bg-gray-800 h-[26px] flex items-center justify-center flex-shrink-0"
         >
-          <div
-              key={'type'}
-              className="px-2 py-1 rounded-full bg-gray-800 h-[26px] flex items-center justify-center flex-shrink-0"
-          >
-              <span className="text-body3-m text-gray-300 leading-none">
-                {ContentTypeLabel[content.type]}
-              </span>
-          </div>
-          {content.tags.map((tag) => (
-            <div
-              key={tag}
-              className="px-2 py-1 rounded-full bg-gray-800 h-[26px] flex items-center justify-center flex-shrink-0"
-            >
-              <span className="text-body3-m text-gray-300 leading-none">
-                {tag}
-              </span>
-            </div>
-          ))}
+            <span className="text-body3-m text-gray-300 leading-none">
+              {ContentTypeLabel[content.type]}
+            </span>
         </div>
-      )}
+        {categoryLabels.map((label) => (
+          <div
+            key={`${label.id}-${label.name}`}
+            className="px-2 py-1 rounded-full bg-gray-800 h-[26px] flex items-center justify-center flex-shrink-0"
+          >
+            <span className="text-body3-m text-gray-300 leading-none">
+              {label.name}
+            </span>
+          </div>
+        ))}
+      </div>
       </div>
 
       {/* Edit Dialog */}
