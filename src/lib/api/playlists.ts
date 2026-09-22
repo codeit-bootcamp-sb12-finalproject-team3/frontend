@@ -7,13 +7,14 @@
  * - Content management in playlists
  */
 
+import { isAxiosError } from 'axios';
 import apiClient from './client';
 import type {
-  PlaylistDto,
   PlaylistCreateRequest,
+  PlaylistDetail,
   PlaylistUpdateRequest,
-  CursorResponsePlaylistDto,
-  FindPlaylistsParams,
+  CursorResponsePlaylistSummary,
+  PlaylistSearchParams,
 } from '@/lib/types';
 
 /**
@@ -23,8 +24,10 @@ import type {
  * @param params - Query parameters for filtering, sorting, and pagination
  * @returns Paginated list of playlists
  */
-export const getPlaylists = async (params?: FindPlaylistsParams): Promise<CursorResponsePlaylistDto> => {
-  const response = await apiClient.get<CursorResponsePlaylistDto>('/api/playlists', { params });
+export const getPlaylists = async (
+  params: PlaylistSearchParams,
+): Promise<CursorResponsePlaylistSummary> => {
+  const response = await apiClient.get<CursorResponsePlaylistSummary>('/api/playlists', { params });
   return response.data;
 };
 
@@ -35,8 +38,8 @@ export const getPlaylists = async (params?: FindPlaylistsParams): Promise<Cursor
  * @param playlistId - Playlist ID to retrieve
  * @returns Playlist information
  */
-export const getPlaylist = async (playlistId: string): Promise<PlaylistDto> => {
-  const response = await apiClient.get<PlaylistDto>(`/api/playlists/${playlistId}`);
+export const getPlaylist = async (playlistId: string): Promise<PlaylistDetail> => {
+  const response = await apiClient.get<PlaylistDetail>(`/api/playlists/${playlistId}`);
   return response.data;
 };
 
@@ -49,8 +52,8 @@ export const getPlaylist = async (playlistId: string): Promise<PlaylistDto> => {
  *
  * Note: Created playlist is owned by the API requester
  */
-export const createPlaylist = async (data: PlaylistCreateRequest): Promise<PlaylistDto> => {
-  const response = await apiClient.post<PlaylistDto>('/api/playlists', data);
+export const createPlaylist = async (data: PlaylistCreateRequest): Promise<PlaylistDetail> => {
+  const response = await apiClient.post<PlaylistDetail>('/api/playlists', data);
   return response.data;
 };
 
@@ -67,8 +70,8 @@ export const createPlaylist = async (data: PlaylistCreateRequest): Promise<Playl
 export const updatePlaylist = async (
   playlistId: string,
   data: PlaylistUpdateRequest,
-): Promise<PlaylistDto> => {
-  const response = await apiClient.patch<PlaylistDto>(`/api/playlists/${playlistId}`, data);
+): Promise<PlaylistDetail> => {
+  const response = await apiClient.patch<PlaylistDetail>(`/api/playlists/${playlistId}`, data);
   return response.data;
 };
 
@@ -131,4 +134,13 @@ export const removeContentFromPlaylist = async (
   contentId: string,
 ): Promise<void> => {
   await apiClient.delete(`/api/playlists/${playlistId}/contents/${contentId}`);
+};
+
+interface PlaylistApiErrorResponse {
+  code?: string;
+}
+
+export const getPlaylistErrorCode = (error: unknown): string | undefined => {
+  if (!isAxiosError<PlaylistApiErrorResponse>(error)) return undefined;
+  return error.response?.data?.code;
 };

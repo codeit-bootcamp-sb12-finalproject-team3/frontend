@@ -1,12 +1,20 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getPlaylist, updatePlaylist, deletePlaylist, subscribePlaylist, unsubscribePlaylist, removeContentFromPlaylist } from '@/lib/api/playlists';
+import {
+  deletePlaylist,
+  getPlaylist,
+  getPlaylistErrorCode,
+  removeContentFromPlaylist,
+  subscribePlaylist,
+  unsubscribePlaylist,
+  updatePlaylist,
+} from '@/lib/api/playlists';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-import type { PlaylistDto } from '@/lib/types';
+import type { PlaylistDetail } from '@/lib/types';
 import PlaylistActions from './components/PlaylistActions';
 import PlaylistContentCard from './components/PlaylistContentCard';
-import {LoadingSpinner} from '@/components/ui/loading-spinner';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import icStarFull from '@/assets/ic_star_full.svg';
 import defaultProfileImg from '@/assets/ic_profile_default.svg';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
@@ -18,9 +26,10 @@ export default function PlaylistDetailPage() {
   const { data: jwt } = useAuthStore();
 
   // Data state
-  const [playlist, setPlaylist] = useState<PlaylistDto | null>(null);
+  const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -43,7 +52,13 @@ export default function PlaylistDetailPage() {
       setError(null);
       const data = await getPlaylist(playlistId);
       setPlaylist(data);
-    } catch {
+    } catch (requestError) {
+      if (getPlaylistErrorCode(requestError) === 'PLAYLIST_NOT_FOUND') {
+        const message = '플레이리스트를 찾을 수 없습니다.';
+        setError(message);
+        toast.error(message);
+        return;
+      }
       setError('플레이리스트를 불러오는데 실패했습니다.');
       toast.error('플레이리스트를 불러오는데 실패했습니다.');
     } finally {
@@ -81,20 +96,29 @@ export default function PlaylistDetailPage() {
       return;
     }
 
+    if (editedTitle.trim().length > 100) {
+      toast.error('제목은 100자 이하로 입력해주세요.');
+      return;
+    }
+
     if (!editedDescription.trim()) {
       toast.error('설명을 입력해주세요.');
       return;
     }
 
     try {
-      await updatePlaylist(playlistId, {
-        title: editedTitle,
-        description: editedDescription,
+      const updatedPlaylist = await updatePlaylist(playlistId, {
+        title: editedTitle.trim(),
+        description: editedDescription.trim(),
       });
+      setPlaylist(updatedPlaylist);
       toast.success('플레이리스트가 수정되었습니다.');
       setIsEditMode(false);
-      await fetchPlaylist();
-    } catch {
+    } catch (requestError) {
+      if (getPlaylistErrorCode(requestError) === 'PLAYLIST_ACCESS_DENIED') {
+        toast.error('플레이리스트를 수정할 권한이 없습니다.');
+        return;
+      }
       toast.error('플레이리스트 수정에 실패했습니다.');
     }
   };
@@ -110,7 +134,12 @@ export default function PlaylistDetailPage() {
       await deletePlaylist(playlistId);
       toast.success('플레이리스트가 삭제되었습니다.');
       navigate('/playlists');
-    } catch {
+    } catch (requestError) {
+      if (getPlaylistErrorCode(requestError) === 'PLAYLIST_ACCESS_DENIED') {
+        toast.error('플레이리스트를 삭제할 권한이 없습니다.');
+        setShowDeleteDialog(false);
+        return;
+      }
       toast.error('플레이리스트 삭제에 실패했습니다.');
     }
     setShowDeleteDialog(false);
@@ -118,18 +147,39 @@ export default function PlaylistDetailPage() {
 
   const handleSubscribe = async () => {
     if (!playlistId || !playlist) return;
+    if (subscriptionLoading) return;
+
+    const wasSubscribed = playlist.subscribedByMe;
+    setSubscriptionLoading(true);
 
     try {
-      if (playlist.subscribedByMe) {
+      if (wasSubscribed) {
         await unsubscribePlaylist(playlistId);
         toast.success('구독이 취소되었습니다.');
       } else {
         await subscribePlaylist(playlistId);
         toast.success('구독되었습니다.');
       }
-      await fetchPlaylist();
-    } catch {
+      setPlaylist((current) => current && current.id === playlistId
+        ? {
+            ...current,
+            subscribedByMe: !wasSubscribed,
+            subscriberCount: Math.max(0, current.subscriberCount + (wasSubscribed ? -1 : 1)),
+          }
+        : current);
+    } catch (requestError) {
+      const code = getPlaylistErrorCode(requestError);
+      if (code === 'PLAYLIST_ALREADY_SUBSCRIBED') {
+        toast.error('이미 구독 중인 플레이리스트입니다.');
+        return;
+      }
+      if (code === 'SELF_PLAYLIST_SUBSCRIPTION_NOT_ALLOWED') {
+        toast.error('자신의 플레이리스트는 구독할 수 없습니다.');
+        return;
+      }
       toast.error('구독 처리에 실패했습니다.');
+    } finally {
+      setSubscriptionLoading(false);
     }
   };
 
@@ -138,9 +188,20 @@ export default function PlaylistDetailPage() {
 
     try {
       await removeContentFromPlaylist(playlistId, contentId);
+      setPlaylist((current) => current && current.id === playlistId
+        ? { ...current, contents: current.contents.filter((content) => content.id !== contentId) }
+        : current);
       toast.success('콘텐츠가 삭제되었습니다.');
-      await fetchPlaylist();
-    } catch {
+    } catch (requestError) {
+      const code = getPlaylistErrorCode(requestError);
+      if (code === 'PLAYLIST_MINIMUM_CONTENT_REQUIRED') {
+        toast.error('플레이리스트에는 최소 4개의 콘텐츠가 필요합니다.');
+        return;
+      }
+      if (code === 'PLAYLIST_ACCESS_DENIED') {
+        toast.error('콘텐츠를 삭제할 권한이 없습니다.');
+        return;
+      }
       toast.error('콘텐츠 삭제에 실패했습니다.');
     }
   };
@@ -198,6 +259,7 @@ export default function PlaylistDetailPage() {
                 value={editedTitle}
                 onChange={(e) => setEditedTitle(e.target.value)}
                 onKeyDown={handleTitleKeyDown}
+                maxLength={100}
                 className="text-header1-sb text-white bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 flex-1 mr-4 focus:outline-none focus:ring-2 focus:ring-pink-600"
                 placeholder="플레이리스트 제목"
               />
@@ -222,6 +284,7 @@ export default function PlaylistDetailPage() {
                 onCancel={handleCancel}
                 onDelete={handleDelete}
                 onSubscribe={handleSubscribe}
+                subscriptionLoading={subscriptionLoading}
               />
             </div>
           </div>
@@ -257,6 +320,7 @@ export default function PlaylistDetailPage() {
                 content={content}
                 playlistId={playlistId!}
                 canDelete={isOwner && !isEditMode}
+                deleteDisabled={playlist.contents.length <= 4}
                 onDelete={() => handleDeleteContent(content.id)}
               />
             ))}

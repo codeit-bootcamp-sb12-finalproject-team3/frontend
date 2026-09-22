@@ -1,18 +1,24 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import usePlaylistStore from '@/lib/stores/usePlaylistStore';
-import SearchBar from '@/pages/contents/components/SearchBar';
 import PlaylistSortDropdown, { type SortOption } from './components/PlaylistSortDropdown';
 import PlaylistGrid from './components/PlaylistGrid';
+import CreatePlaylistDialog from './components/CreatePlaylistDialog';
+import { Button } from '@/components/ui/button';
 
 export default function PlaylistsPage() {
-  const { data, loading, error, fetchMore, hasNext, updateParams } = usePlaylistStore();
+  const { data, loading, error, fetch, fetchMore, hasNext, updateParams } = usePlaylistStore();
   const [sortValue, setSortValue] = useState('latest');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0,
     rootMargin: '100px',
   });
+
+  useEffect(() => {
+    void fetch();
+  }, [fetch]);
 
   // Infinite scroll
   useEffect(() => {
@@ -21,22 +27,10 @@ export default function PlaylistsPage() {
     }
   }, [inView, hasNext, loading, fetchMore]);
 
-  // Handle search
-  const handleSearch = useCallback(
-    (query: string) => {
-      if (query.trim()) {
-        updateParams({ keywordLike: query });
-      } else {
-        updateParams({ keywordLike: undefined });
-      }
-    },
-    [updateParams]
-  );
-
   // Handle sort change
   const handleSortChange = useCallback(
     (option: SortOption) => {
-      setSortValue(option.sortBy === 'updatedAt' ? 'latest' : 'popular');
+      setSortValue(option.sortBy === 'createdAt' ? 'latest' : 'popular');
       updateParams({
         sortBy: option.sortBy,
         sortDirection: option.sortDirection,
@@ -50,10 +44,15 @@ export default function PlaylistsPage() {
       {/* Page Title */}
       <h1 className="text-header1-b text-white">플레이리스트</h1>
 
-      {/* Search & Sort Bar */}
+      {/* Sort Bar */}
       <div className="flex items-center justify-end">
         <div className="flex items-center gap-2.5">
-          <SearchBar onSearch={handleSearch} />
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            className="h-11 rounded-lg bg-pink-600 px-4 text-body3-b text-white hover:bg-pink-700"
+          >
+            + 플레이리스트 만들기
+          </Button>
           <PlaylistSortDropdown value={sortValue} onValueChange={handleSortChange} />
         </div>
       </div>
@@ -69,6 +68,8 @@ export default function PlaylistsPage() {
           )}
         </div>
       )}
+
+      <CreatePlaylistDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
     </div>
   );
 }

@@ -1,8 +1,8 @@
-import type { PlaylistDto } from '@/lib/types';
+import type { PlaylistSummary } from '@/lib/types';
 import PlaylistCard from './PlaylistCard';
 
 interface PlaylistGridProps {
-  playlists: PlaylistDto[];
+  playlists: PlaylistSummary[];
   loading?: boolean;
   error?: string;
 }

@@ -25,14 +25,14 @@ export const createFollow = async (data: FollowRequest): Promise<FollowDto> => {
 
 /**
  * Unfollow user (팔로우 취소)
- * DELETE /api/follows/{followId}
+ * DELETE /api/follows/{followeeId}
  *
- * @param followId - Follow ID to cancel
+ * @param followeeId - User ID to unfollow
  *
  * Note: Users can only cancel their own follows
  */
-export const cancelFollow = async (followId: string): Promise<void> => {
-  await apiClient.delete(`/api/follows/${followId}`);
+export const cancelFollow = async (followeeId: string): Promise<void> => {
+  await apiClient.delete(`/api/follows/${followeeId}`);
 };
 
 /**
