@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import type { PlaylistDto } from '@/lib/types';
+import type { PlaylistSummary } from '@/lib/types';
 import icStarFull from '@/assets/ic_star_full.svg';
 import icClock from '@/assets/ic_clock.svg';
 
 interface PlaylistCardProps {
-  playlist: PlaylistDto;
+  playlist: PlaylistSummary;
 }
 
 export default function PlaylistCard({ playlist }: PlaylistCardProps) {
@@ -15,10 +15,10 @@ export default function PlaylistCard({ playlist }: PlaylistCardProps) {
   };
 
   // Get first 3 content thumbnails for display
-  const thumbnails = playlist.contents.slice(0, 3);
+  const thumbnails = playlist.previewContents.slice(0, 3);
 
   // Get content preview text (first 3 titles)
-  const contentPreview = playlist.contents
+  const contentPreview = playlist.previewContents
     .slice(0, 3)
     .map((content) => content.title)
     .join(', ');
@@ -81,14 +81,14 @@ export default function PlaylistCard({ playlist }: PlaylistCardProps) {
               <span className="text-body1-b text-gray-200 truncate">
                 {contentPreview}
               </span>
-              {playlist.contents.length > 3 && (
+              {playlist.contentCount > 3 && (
                 <span className="text-body1-m text-gray-300 flex-shrink-0">등</span>
               )}
             </div>
 
             {/* Content count */}
             <p className="text-body2-sb text-gray-500 mt-2">
-              {playlist.contents.length}개의 콘텐츠
+              {playlist.contentCount}개의 콘텐츠
             </p>
           </div>
 
@@ -106,7 +106,7 @@ export default function PlaylistCard({ playlist }: PlaylistCardProps) {
             {/* Last updated */}
             <div className="flex items-center gap-[2px]">
               <img src={icClock} alt="" className="w-4 h-4" />
-              <span className="text-caption1-m">{formatUpdatedTime(playlist.updatedAt)}</span>
+              <span className="text-caption1-m">{formatUpdatedTime(playlist.createdAt)}</span>
             </div>
           </div>
         </div>
@@ -164,7 +164,7 @@ export default function PlaylistCard({ playlist }: PlaylistCardProps) {
               />
 
               {/* Count badge if more than 3 contents */}
-              {playlist.contents.length > 3 && (
+              {playlist.contentCount > 3 && (
                 <div
                   className="absolute bottom-2 right-2 px-3 py-1 rounded-full"
                   style={{
@@ -172,7 +172,7 @@ export default function PlaylistCard({ playlist }: PlaylistCardProps) {
                   }}
                 >
                   <span className="text-caption1-sb text-gray-100">
-                    +{playlist.contents.length - 3}
+                    +{playlist.contentCount - 3}
                   </span>
                 </div>
               )}

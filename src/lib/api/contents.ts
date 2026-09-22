@@ -13,7 +13,9 @@ import type {
   ContentCreateRequest,
   ContentUpdateRequest,
   CursorResponseContentDto,
+  CursorResponseSelectableContent,
   FindContentsParams,
+  SelectableContentSearchParams,
 } from '@/lib/types';
 
 /**
@@ -25,6 +27,17 @@ import type {
  */
 export const getContents = async (params?: FindContentsParams): Promise<CursorResponseContentDto> => {
   const response = await apiClient.get<CursorResponseContentDto>('/api/contents', { params });
+  return response.data;
+};
+
+/**
+ * Get movie or TV season candidates for playlist creation.
+ * The backend uses typeEqual=tvSeries to query TV_SEASON rows.
+ */
+export const getSelectableContents = async (
+  params: SelectableContentSearchParams,
+): Promise<CursorResponseSelectableContent> => {
+  const response = await apiClient.get<CursorResponseSelectableContent>('/api/contents', { params });
   return response.data;
 };
 
