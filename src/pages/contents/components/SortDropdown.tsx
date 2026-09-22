@@ -5,12 +5,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type {FindContentsParams, SortDirection} from '@/lib/types';
+import type { ContentSort } from '@/lib/types';
 
 export type SortOption = {
   label: string;
-  sortBy: FindContentsParams['sortBy'];
-  sortDirection?: SortDirection;
+  sortBy: ContentSort;
 };
 
 interface SortDropdownProps {
@@ -19,9 +18,8 @@ interface SortDropdownProps {
 }
 
 const SORT_OPTIONS: (SortOption & { value: string })[] = [
-  { value: 'popular', label: '인기순', sortBy: 'watcherCount', sortDirection: 'DESCENDING' },
-  { value: 'latest', label: '최신순', sortBy: 'createdAt', sortDirection: 'DESCENDING' },
-  { value: 'rating', label: '평점순', sortBy: 'rate', sortDirection: 'DESCENDING' },
+  { value: 'latest', label: '최신순', sortBy: 'latest' },
+  { value: 'rating', label: '평점순', sortBy: 'rating' },
 ];
 
 export default function SortDropdown({ value, onValueChange }: SortDropdownProps) {

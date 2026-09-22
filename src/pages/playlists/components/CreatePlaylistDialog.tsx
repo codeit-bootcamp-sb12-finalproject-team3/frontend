@@ -9,12 +9,12 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getSelectableContents } from '@/lib/api/contents';
+import { getContents } from '@/lib/api/contents';
 import { createPlaylist, getPlaylistErrorCode } from '@/lib/api/playlists';
 import type {
-  CursorResponseSelectableContent,
-  SelectableContent,
-  SelectableContentTypeFilter,
+  ContentSummaryResponse,
+  ContentTypeFilter,
+  CursorResponseContentSummary,
 } from '@/lib/types';
 
 interface CreatePlaylistDialogProps {
@@ -23,15 +23,20 @@ interface CreatePlaylistDialogProps {
 }
 
 interface ContentPageState {
-  movie: CursorResponseSelectableContent | null;
-  tvSeries: CursorResponseSelectableContent | null;
+  movie: CursorResponseContentSummary | null;
+  tvSeries: CursorResponseContentSummary | null;
 }
 
-const CONTENT_FILTERS: SelectableContentTypeFilter[] = ['movie', 'tvSeries'];
+const CONTENT_FILTERS: Extract<ContentTypeFilter, 'movie' | 'tvSeries'>[] = [
+  'movie',
+  'tvSeries',
+];
 const PAGE_SIZE = 20;
 
-const mergeUniqueContents = (...groups: SelectableContent[][]): SelectableContent[] => {
-  const contents = new Map<string, SelectableContent>();
+const mergeUniqueContents = (
+  ...groups: ContentSummaryResponse[][]
+): ContentSummaryResponse[] => {
+  const contents = new Map<string, ContentSummaryResponse>();
   groups.flat().forEach((content) => contents.set(content.id, content));
   return Array.from(contents.values());
 };
@@ -46,9 +51,9 @@ export default function CreatePlaylistDialog({
   const [description, setDescription] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [contents, setContents] = useState<SelectableContent[]>([]);
+  const [contents, setContents] = useState<ContentSummaryResponse[]>([]);
   const [pages, setPages] = useState<ContentPageState>({ movie: null, tvSeries: null });
-  const [selectedContents, setSelectedContents] = useState<Map<string, SelectableContent>>(
+  const [selectedContents, setSelectedContents] = useState<Map<string, ContentSummaryResponse>>(
     new Map(),
   );
   const [loading, setLoading] = useState(false);
@@ -67,7 +72,7 @@ export default function CreatePlaylistDialog({
     setLoading(true);
 
     Promise.all(
-      CONTENT_FILTERS.map((typeEqual) => getSelectableContents({
+      CONTENT_FILTERS.map((typeEqual) => getContents({
         typeEqual,
         keywordLike: searchKeyword || undefined,
         limit: PAGE_SIZE,
@@ -129,7 +134,7 @@ export default function CreatePlaylistDialog({
     onOpenChange(nextOpen);
   };
 
-  const toggleContent = (content: SelectableContent) => {
+  const toggleContent = (content: ContentSummaryResponse) => {
     setSelectedContents((current) => {
       const next = new Map(current);
       if (next.has(content.id)) next.delete(content.id);
@@ -147,7 +152,7 @@ export default function CreatePlaylistDialog({
       const requests = CONTENT_FILTERS.flatMap((typeEqual) => {
         const page = pages[typeEqual];
         if (!page?.hasNext || !page.nextCursor || !page.nextIdAfter) return [];
-        return [getSelectableContents({
+        return [getContents({
           typeEqual,
           keywordLike: searchKeyword || undefined,
           cursor: page.nextCursor,

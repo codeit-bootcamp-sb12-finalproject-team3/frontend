@@ -1,18 +1,27 @@
-import type {ContentDto} from '@/lib/types';
+import type { ContentSummaryResponse } from '@/lib/types';
 import ContentCard from './ContentCard';
 
 interface ContentGridProps {
-  contents: ContentDto[];
+  contents: ContentSummaryResponse[];
   loading?: boolean;
+  error?: string;
 }
 
-export default function ContentGrid({ contents, loading }: ContentGridProps) {
+export default function ContentGrid({ contents, loading, error }: ContentGridProps) {
   if (loading && contents.length === 0) {
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-6 sm:gap-x-5 sm:gap-y-8 md:gap-x-[30px] md:gap-y-[40px]">
         {Array.from({ length: 30 }).map((_, index) => (
           <ContentCardSkeleton key={index} />
         ))}
+      </div>
+    );
+  }
+
+  if (error && contents.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <p className="text-body2-m text-red-notification">{error}</p>
       </div>
     );
   }
