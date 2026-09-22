@@ -12,8 +12,8 @@ import type {
   PlaylistDto,
   PlaylistCreateRequest,
   PlaylistUpdateRequest,
-  CursorResponsePlaylistDto,
-  FindPlaylistsParams,
+  CursorResponsePlaylistSummary,
+  PlaylistSearchParams,
 } from '@/lib/types';
 
 /**
@@ -23,8 +23,10 @@ import type {
  * @param params - Query parameters for filtering, sorting, and pagination
  * @returns Paginated list of playlists
  */
-export const getPlaylists = async (params?: FindPlaylistsParams): Promise<CursorResponsePlaylistDto> => {
-  const response = await apiClient.get<CursorResponsePlaylistDto>('/api/playlists', { params });
+export const getPlaylists = async (
+  params: PlaylistSearchParams,
+): Promise<CursorResponsePlaylistSummary> => {
+  const response = await apiClient.get<CursorResponsePlaylistSummary>('/api/playlists', { params });
   return response.data;
 };
 

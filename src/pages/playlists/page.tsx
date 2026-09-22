@@ -1,18 +1,21 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import usePlaylistStore from '@/lib/stores/usePlaylistStore';
-import SearchBar from '@/pages/contents/components/SearchBar';
 import PlaylistSortDropdown, { type SortOption } from './components/PlaylistSortDropdown';
 import PlaylistGrid from './components/PlaylistGrid';
 
 export default function PlaylistsPage() {
-  const { data, loading, error, fetchMore, hasNext, updateParams } = usePlaylistStore();
+  const { data, loading, error, fetch, fetchMore, hasNext, updateParams } = usePlaylistStore();
   const [sortValue, setSortValue] = useState('latest');
 
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0,
     rootMargin: '100px',
   });
+
+  useEffect(() => {
+    void fetch();
+  }, [fetch]);
 
   // Infinite scroll
   useEffect(() => {
@@ -21,22 +24,10 @@ export default function PlaylistsPage() {
     }
   }, [inView, hasNext, loading, fetchMore]);
 
-  // Handle search
-  const handleSearch = useCallback(
-    (query: string) => {
-      if (query.trim()) {
-        updateParams({ keywordLike: query });
-      } else {
-        updateParams({ keywordLike: undefined });
-      }
-    },
-    [updateParams]
-  );
-
   // Handle sort change
   const handleSortChange = useCallback(
     (option: SortOption) => {
-      setSortValue(option.sortBy === 'updatedAt' ? 'latest' : 'popular');
+      setSortValue(option.sortBy === 'createdAt' ? 'latest' : 'popular');
       updateParams({
         sortBy: option.sortBy,
         sortDirection: option.sortDirection,
@@ -50,10 +41,9 @@ export default function PlaylistsPage() {
       {/* Page Title */}
       <h1 className="text-header1-b text-white">플레이리스트</h1>
 
-      {/* Search & Sort Bar */}
+      {/* Sort Bar */}
       <div className="flex items-center justify-end">
         <div className="flex items-center gap-2.5">
-          <SearchBar onSearch={handleSearch} />
           <PlaylistSortDropdown value={sortValue} onValueChange={handleSortChange} />
         </div>
       </div>

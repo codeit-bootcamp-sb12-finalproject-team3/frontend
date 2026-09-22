@@ -79,8 +79,8 @@ export interface PaginatedStore<T, P extends CursorParams> {
 }
 
 export interface CursorState {
-  nextCursor?: string;
-  nextIdAfter?: string;
+  nextCursor?: string | null;
+  nextIdAfter?: string | null;
   hasNext: boolean;
   totalCount: number;
 }

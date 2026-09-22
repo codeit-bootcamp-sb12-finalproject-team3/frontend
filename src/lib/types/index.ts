@@ -6,6 +6,17 @@
 
 // Export commonly used schema types
 import type { components, operations } from './api';
+import type {
+  CursorResponsePlaylistSummary,
+  PlaylistSearchParams,
+} from './playlists';
+
+export type {
+  CursorResponsePlaylistSummary,
+  PlaylistSearchParams,
+  PlaylistSortBy,
+  PlaylistSummary,
+} from './playlists';
 
 // User types
 export type UserDto = components['schemas']['UserDto'];
@@ -64,7 +75,7 @@ export type WatchingSessionChange = {
 // Cursor pagination types
 export type CursorResponseUserDto = components['schemas']['CursorResponseUserDto'];
 export type CursorResponseContentDto = components['schemas']['CursorResponseContentDto'];
-export type CursorResponsePlaylistDto = components['schemas']['CursorResponsePlaylistDto'];
+export type CursorResponsePlaylistDto = CursorResponsePlaylistSummary;
 export type CursorResponseReviewDto = components['schemas']['CursorResponseReviewDto'];
 export type CursorResponseConversationDto = components['schemas']['CursorResponseConversationDto'];
 export type CursorResponseDirectMessageDto = components['schemas']['CursorResponseDirectMessageDto'];
@@ -105,7 +116,7 @@ export type FindUsersParams = operations['findUsers']['parameters']['query'];
 export type FindContentsParams = operations['findContents']['parameters']['query'];
 
 // Playlist query params
-export type FindPlaylistsParams = operations['findPlaylists']['parameters']['query'];
+export type FindPlaylistsParams = PlaylistSearchParams;
 
 // Review query params
 export type FindReviewsParams = operations['findReviews']['parameters']['query'];
@@ -124,7 +135,7 @@ export type FindWatchingSessionsByContentParams =
 export type CursorParams =
     FindUsersParams
     | FindContentsParams
-    | FindPlaylistsParams
+    | PlaylistSearchParams
     | FindReviewsParams
     | FindConversationsParams
     | FindDmsParams

@@ -5,12 +5,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { FindPlaylistsParams, SortDirection } from '@/lib/types';
+import type { PlaylistSortBy, SortDirection } from '@/lib/types';
 
 export type SortOption = {
   label: string;
-  sortBy: FindPlaylistsParams['sortBy'];
-  sortDirection?: SortDirection;
+  sortBy: PlaylistSortBy;
+  sortDirection: SortDirection;
 };
 
 interface PlaylistSortDropdownProps {
@@ -19,8 +19,13 @@ interface PlaylistSortDropdownProps {
 }
 
 const SORT_OPTIONS: (SortOption & { value: string })[] = [
-  { value: 'latest', label: '최신순', sortBy: 'updatedAt', sortDirection: 'DESCENDING' },
-  { value: 'popular', label: '구독순', sortBy: 'subscribeCount', sortDirection: 'DESCENDING' },
+  { value: 'latest', label: '최신순', sortBy: 'createdAt', sortDirection: 'DESCENDING' },
+  {
+    value: 'popular',
+    label: '주간 인기순',
+    sortBy: 'weeklyPopularityScore',
+    sortDirection: 'DESCENDING',
+  },
 ];
 
 export default function PlaylistSortDropdown({

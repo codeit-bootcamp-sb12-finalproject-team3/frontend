@@ -6,9 +6,8 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { getPlaylists, createPlaylist, addContentToPlaylist } from '@/lib/api/playlists';
-import usePlaylistStore from '@/lib/stores/usePlaylistStore';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-import type { PlaylistDto, PlaylistCreateRequest } from '@/lib/types';
+import type { PlaylistCreateRequest, PlaylistSummary } from '@/lib/types';
 import icX from '@/assets/ic_X.svg';
 import icArrowLeft from '@/assets/ic_arrow_left.svg';
 
@@ -24,7 +23,7 @@ export default function AddToPlaylistDialog({
   contentId,
 }: AddToPlaylistDialogProps) {
   const [view, setView] = useState<'list' | 'create'>('list');
-  const [userPlaylists, setUserPlaylists] = useState<PlaylistDto[]>([]);
+  const [userPlaylists, setUserPlaylists] = useState<PlaylistSummary[]>([]);
   const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -52,16 +51,10 @@ export default function AddToPlaylistDialog({
         ownerIdEqual: jwt.userDto.id,
         limit: 100,
         sortDirection: 'DESCENDING',
-        sortBy: 'updatedAt',
+        sortBy: 'createdAt',
       });
 
-      // 이미 추가된 콘텐츠가 있는 플레이리스트 필터링
-      const notAddedPlaylists = response.data.filter((playlist) => {
-        const hasContent = playlist.contents.some((content) => content.id === contentId);
-        return !hasContent; // 콘텐츠가 없는 플레이리스트만 표시
-      });
-
-      setUserPlaylists(notAddedPlaylists);
+      setUserPlaylists(response.data);
       setSelectedPlaylistIds(new Set()); // 초기 선택 없음
     } catch (err) {
       console.error('Failed to fetch playlists:', err);
@@ -108,10 +101,7 @@ export default function AddToPlaylistDialog({
       // 1. API 호출
       const newPlaylist = await createPlaylist(data);
 
-      // 2. 스토어 동기화
-      usePlaylistStore.getState().add(newPlaylist);
-
-      // 3. 새로 생성된 플레이리스트에 콘텐츠 추가
+      // 2. 새로 생성된 플레이리스트에 콘텐츠 추가
       await addContentToPlaylist(newPlaylist.id, contentId);
 
       toast.success('플레이리스트가 생성되고 콘텐츠가 추가되었습니다.');
@@ -151,7 +141,7 @@ export default function AddToPlaylistDialog({
 }
 
 interface PlaylistListViewProps {
-  userPlaylists: PlaylistDto[];
+  userPlaylists: PlaylistSummary[];
   selectedPlaylistIds: Set<string>;
   loading: boolean;
   adding: boolean;
@@ -233,7 +223,7 @@ function PlaylistListView({
 }
 
 interface PlaylistCheckboxItemProps {
-  playlist: PlaylistDto;
+  playlist: PlaylistSummary;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }
