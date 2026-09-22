@@ -1,7 +1,36 @@
 import type { components } from './api';
 
-type ContentSummary = components['schemas']['ContentSummary'];
 type UserSummary = components['schemas']['UserSummary'];
+
+export type PlaylistContentType = 'movie' | 'tvSeason';
+
+export interface PlaylistContentSummary {
+  id: string;
+  type: PlaylistContentType;
+  title: string;
+  description: string | null;
+  thumbnailUrl: string | null;
+  tags: string[];
+  averageRating: number;
+  reviewCount: number;
+}
+
+export interface PlaylistDetail {
+  id: string;
+  owner: UserSummary;
+  title: string;
+  description: string;
+  updatedAt: string;
+  subscriberCount: number;
+  subscribedByMe: boolean;
+  contents: PlaylistContentSummary[];
+}
+
+export interface PlaylistCreateRequest {
+  title: string;
+  description: string;
+  contentIds: string[];
+}
 
 export type PlaylistSortBy = 'createdAt' | 'weeklyPopularityScore';
 
@@ -25,7 +54,7 @@ export interface PlaylistSummary {
   subscriberCount: number;
   subscribedByMe: boolean;
   contentCount: number;
-  previewContents: ContentSummary[];
+  previewContents: PlaylistContentSummary[];
 }
 
 export interface CursorResponsePlaylistSummary {

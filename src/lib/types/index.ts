@@ -13,10 +13,20 @@ import type {
 
 export type {
   CursorResponsePlaylistSummary,
+  PlaylistContentSummary,
+  PlaylistContentType,
+  PlaylistDetail,
   PlaylistSearchParams,
   PlaylistSortBy,
   PlaylistSummary,
 } from './playlists';
+export type {
+  CursorResponseSelectableContent,
+  SelectableContent,
+  SelectableContentSearchParams,
+  SelectableContentType,
+  SelectableContentTypeFilter,
+} from './contents';
 
 // User types
 export type UserDto = components['schemas']['UserDto'];
@@ -44,7 +54,7 @@ export type ContentChatDto = {
 
 // Playlist types
 export type PlaylistDto = components['schemas']['PlaylistDto'];
-export type PlaylistCreateRequest = components['schemas']['PlaylistCreateRequest'];
+export type { PlaylistCreateRequest } from './playlists';
 export type PlaylistUpdateRequest = components['schemas']['PlaylistUpdateRequest'];
 
 // Review types
