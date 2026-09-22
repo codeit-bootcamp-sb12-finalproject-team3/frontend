@@ -11,12 +11,13 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { ErrorResponse } from '@/lib/types';
 import useAuthStore from "@/lib/stores/useAuthStore.ts";
+import { API_BASE_URL } from '@/lib/config/environment';
 
 /**
  * Base API client instance
  */
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -52,7 +53,13 @@ apiClient.interceptors.request.use(
     // Inject JWT access token
     if (getAccessToken) {
       const token = getAccessToken();
-      if (token && !config.url?.includes('/auth/refresh')) {
+      const isCookieAuthRequest = [
+        '/api/auth/login',
+        '/api/auth/refresh',
+        '/api/auth/logout',
+      ].some((path) => config.url?.includes(path));
+
+      if (token && !isCookieAuthRequest) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
@@ -77,17 +84,7 @@ apiClient.interceptors.request.use(
 /**
  * Track if we're currently refreshing token to prevent multiple simultaneous refreshes
  */
-let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
-
-const onRefreshed = (token: string) => {
-  refreshSubscribers.forEach((callback) => callback(token));
-  refreshSubscribers = [];
-};
-
-const addRefreshSubscriber = (callback: (token: string) => void) => {
-  refreshSubscribers.push(callback);
-};
+let refreshRequest: Promise<string> | null = null;
 
 /**
  * Response Interceptor
@@ -108,25 +105,16 @@ apiClient.interceptors.response.use(
         && !originalRequest._retry
         && handleTokenRefresh
     ) {
-      if (isRefreshing) {
-        // If already refreshing, queue this request
-        return new Promise((resolve) => {
-          addRefreshSubscriber((token: string) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            resolve(apiClient(originalRequest));
-          });
-        });
-      }
-
       originalRequest._retry = true;
-      isRefreshing = true;
 
       try {
-        const newToken = await handleTokenRefresh();
-        isRefreshing = false;
-        onRefreshed(newToken);
+        if (!refreshRequest) {
+          refreshRequest = handleTokenRefresh().finally(() => {
+            refreshRequest = null;
+          });
+        }
+
+        const newToken = await refreshRequest;
 
         // Retry original request with new token
         if (originalRequest.headers) {
@@ -134,9 +122,7 @@ apiClient.interceptors.response.use(
         }
         return apiClient(originalRequest);
       } catch (refreshError) {
-        isRefreshing = false;
-        refreshSubscribers = [];
-        await useAuthStore.getState().signOut();
+        useAuthStore.getState().clear();
         // Token refresh failed - user needs to re-authenticate
         return Promise.reject(refreshError);
       }

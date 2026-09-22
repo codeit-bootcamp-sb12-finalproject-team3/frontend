@@ -9,39 +9,56 @@
  */
 
 import apiClient from './client';
-import type { SignInRequest, JwtDto, ResetPasswordRequest } from '@/lib/types';
+import type { JwtDto, ResetPasswordRequest } from '@/lib/types';
+
+interface SignInRequest {
+  email: string;
+  password: string;
+}
+
+interface CsrfTokenResponse {
+  csrfToken: string;
+}
+
+let csrfToken: string | null = null;
+let csrfTokenRequest: Promise<string> | null = null;
 
 /**
  * Sign in (로그인)
- * POST /api/auth/sign-in
+ * POST /api/auth/login
  *
- * @param credentials - User credentials (username = email, password)
+ * @param credentials - User credentials (email, password)
  * @returns JWT token and user information
  *
  * Note: Uses application/x-www-form-urlencoded format
  */
 export const signIn = async (credentials: SignInRequest): Promise<JwtDto> => {
+  await getCsrfToken();
+
   const params = new URLSearchParams();
-  if (credentials.username) params.append('username', credentials.username);
+  if (credentials.email) params.append('email', credentials.email);
   if (credentials.password) params.append('password', credentials.password);
 
-  const response = await apiClient.post<JwtDto>('/api/auth/sign-in', params, {
+  const response = await apiClient.post<JwtDto>('/api/auth/login', params, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
   });
 
+  // Spring Security replaces the cookie-backed CSRF token after authentication.
+  csrfToken = null;
   return response.data;
 };
 
 /**
  * Sign out (로그아웃)
- * POST /api/auth/sign-out
+ * POST /api/auth/logout
  *
  * Note: Handled by SecurityFilterChain
  */
 export const signOut = async (): Promise<void> => {
-  await apiClient.post('/api/auth/sign-out');
+  await getCsrfToken();
+  await apiClient.post('/api/auth/logout');
 };
 
 /**
@@ -53,6 +70,7 @@ export const signOut = async (): Promise<void> => {
  * Note: Uses REFRESH_TOKEN cookie automatically (withCredentials: true)
  */
 export const refreshToken = async (): Promise<JwtDto> => {
+  await getCsrfToken();
   const response = await apiClient.post<JwtDto>('/api/auth/refresh');
   return response.data;
 };
@@ -75,9 +93,29 @@ export const resetPassword = async (request: ResetPasswordRequest): Promise<void
  *
  * Note: Token is stored in XSRF-TOKEN cookie automatically
  */
-export const getCsrfToken = async (): Promise<void> => {
-  await apiClient.get('/api/auth/csrf-token');
+export const getCsrfToken = async (): Promise<string> => {
+  if (csrfToken) return csrfToken;
+
+  if (!csrfTokenRequest) {
+    csrfTokenRequest = apiClient
+      .get<CsrfTokenResponse>('/api/auth/csrf-token')
+      .then((response) => {
+        const token = response.data.csrfToken || getCsrfTokenFromCookie();
+        if (!token) {
+          throw new Error('The API did not return a CSRF token.');
+        }
+        csrfToken = token;
+        return token;
+      })
+      .finally(() => {
+        csrfTokenRequest = null;
+      });
+  }
+
+  return csrfTokenRequest;
 };
+
+export const getCachedCsrfToken = (): string | null => csrfToken;
 
 /**
  * Get CSRF token from cookie
