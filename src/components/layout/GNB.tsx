@@ -45,18 +45,20 @@ export default function GNB() {
         await connect(authentication.accessToken);
       }
 
-      // Subscribe to "notifications" topic
-      subscribe('notifications', (newNotification: NotificationDto) => {
+      // Subscribe to notification creation events
+      subscribe('notification.created', (newNotification: NotificationDto) => {
         // Add new notification to store
         useNotificationStore.getState().add(newNotification);
       });
     };
 
-    setupSSE();
+    void setupSSE().catch((error) => {
+      console.error('Failed to establish the initial SSE connection:', error);
+    });
 
     // Cleanup: unsubscribe on unmount
     return () => {
-      unsubscribe('notifications');
+      unsubscribe('notification.created');
     };
   }, [authentication, isConnected, connect, subscribe, unsubscribe]);
 

@@ -9,7 +9,11 @@
 
 import { setTokenGetters } from './client';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
-import { getCsrfTokenFromCookie, refreshToken } from './auth';
+import { getCachedCsrfToken, refreshToken } from './auth';
+import { useSseStore } from '@/lib/stores/sseStore';
+import { useWebSocketStore } from '@/lib/stores/websocketStore';
+
+let unsubscribeAuthLifecycle: (() => void) | null = null;
 
 /**
  * Initialize API client with auth store integration
@@ -21,8 +25,8 @@ export const initializeApiClient = () => {
     // Get access token from auth store
     () => useAuthStore.getState().getAccessToken(),
 
-    // Get CSRF token from cookie
-    () => getCsrfTokenFromCookie(),
+    // Get the CSRF token returned by the API bootstrap endpoint
+    () => getCachedCsrfToken(),
 
     // Handle token refresh
     async () => {
@@ -31,4 +35,19 @@ export const initializeApiClient = () => {
       return newTokenData.accessToken;
     },
   );
+
+  unsubscribeAuthLifecycle?.();
+  unsubscribeAuthLifecycle = useAuthStore.subscribe((state, previousState) => {
+    const accessToken = state.data?.accessToken;
+    const previousAccessToken = previousState.data?.accessToken;
+
+    if (accessToken && previousAccessToken && accessToken !== previousAccessToken) {
+      useSseStore.getState().updateAccessToken(accessToken);
+    }
+
+    if (previousAccessToken && !accessToken) {
+      useSseStore.getState().disconnect();
+      useWebSocketStore.getState().disconnect();
+    }
+  });
 };
