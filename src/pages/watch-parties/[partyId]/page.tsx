@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useBlocker, useNavigate, useParams } from 'react-router-dom';
 import { CalendarClock, Clock3, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,9 @@ export default function WatchPartyRoomPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusChanging, setStatusChanging] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const leaveRequest = useRef<Promise<void> | null>(null);
+  const hasLeft = useRef(false);
+  const blockedNavigationInProgress = useRef(false);
   const realtimePlaybackReceived = useRef(false);
   const requestSequence = useRef(0);
   const startRefreshTimer = useRef<number | null>(null);
@@ -70,6 +73,8 @@ export default function WatchPartyRoomPage() {
   }, [partyId]);
 
   useEffect(() => {
+    hasLeft.current = false;
+    blockedNavigationInProgress.current = false;
     realtimePlaybackReceived.current = false;
     setParty(null);
     setPlayback(null);
@@ -103,6 +108,46 @@ export default function WatchPartyRoomPage() {
   });
 
   const isHost = Boolean(party && authentication?.userDto.id === party.host.userId);
+
+  const leaveParty = useCallback(() => {
+    if (!partyId || isHost || hasLeft.current) return Promise.resolve();
+    if (leaveRequest.current) return leaveRequest.current;
+
+    setLeaving(true);
+    const request = leaveWatchParty(partyId)
+      .then(() => {
+        hasLeft.current = true;
+      })
+      .finally(() => {
+        leaveRequest.current = null;
+        setLeaving(false);
+      });
+    leaveRequest.current = request;
+    return request;
+  }, [isHost, partyId]);
+
+  const navigationBlocker = useBlocker(({ currentLocation, nextLocation }) =>
+    Boolean(
+      party
+      && !isHost
+      && !hasLeft.current
+      && currentLocation.pathname !== nextLocation.pathname,
+    ),
+  );
+
+  useEffect(() => {
+    if (navigationBlocker.state !== 'blocked' || blockedNavigationInProgress.current) return;
+    blockedNavigationInProgress.current = true;
+
+    void leaveParty()
+      .then(() => navigationBlocker.proceed())
+      .catch((requestError) => {
+        blockedNavigationInProgress.current = false;
+        console.error(requestError);
+        toast.error('Watch Party에서 퇴장하지 못했습니다. 다시 시도해주세요.');
+        navigationBlocker.reset();
+      });
+  }, [leaveParty, navigationBlocker]);
 
   const handleStart = async () => {
     if (!partyId || !isHost || statusChanging) return;
@@ -142,16 +187,13 @@ export default function WatchPartyRoomPage() {
 
   const handleLeave = async () => {
     if (!partyId || isHost || leaving) return;
-    setLeaving(true);
     try {
-      await leaveWatchParty(partyId);
+      await leaveParty();
       toast.success('Watch Party에서 퇴장했습니다.');
       navigate('/watch-parties');
     } catch (requestError) {
       console.error(requestError);
       toast.error('Watch Party에서 퇴장하지 못했습니다.');
-    } finally {
-      setLeaving(false);
     }
   };
 

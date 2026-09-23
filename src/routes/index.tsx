@@ -1,4 +1,10 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import {
+  Navigate,
+  Route,
+  RouterProvider,
+  createHashRouter,
+  createRoutesFromElements,
+} from 'react-router-dom';
 
 // Layouts
 import RootLayout from '@/components/layout/RootLayout';
@@ -26,9 +32,8 @@ import WatchPartyRoomPage from '@/pages/watch-parties/[partyId]/page';
 import NotFoundPage from '@/pages/not-found/page';
 import ProfileRoutePage from "@/pages/profiles/page.tsx";
 
-export default function AppRoutes() {
-  return (
-    <Routes>
+const router = createHashRouter(
+  createRoutesFromElements(
       <Route element={<RootLayout />}>
         {/* Public Auth Routes */}
         <Route path="/sign-in" element={<SignInPage />} />
@@ -70,6 +75,9 @@ export default function AppRoutes() {
         {/* 404 Not Found */}
         <Route path="*" element={<NotFoundPage />} />
       </Route>
-    </Routes>
-  );
+  ),
+);
+
+export default function AppRoutes() {
+  return <RouterProvider router={router} />;
 }
