@@ -32,6 +32,17 @@ export type {
   PlaylistSortBy,
   PlaylistSummary,
 } from './playlists';
+export type {
+  CreateWatchPartyRequest,
+  CursorPageWatchPartyResponse,
+  WatchPartyContentSummary,
+  WatchPartyHostSummary,
+  WatchPartyPlaybackStatus,
+  WatchPartyResponse,
+  WatchPartySearchParams,
+  WatchPartyStatus,
+  WatchPartySummaryResponse,
+} from './watch-parties';
 
 // User types
 export type UserDto = components['schemas']['UserDto'];

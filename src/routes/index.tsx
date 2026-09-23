@@ -19,6 +19,8 @@ import ProfilePage from '@/pages/profiles/[userId]/page';
 import ConversationsPage from '@/pages/conversations/page';
 import ConversationWithPage from '@/pages/conversations/with/page';
 import AdminUsersPage from '@/pages/admin/users/page';
+import WatchPartiesPage from '@/pages/watch-parties/page';
+import WatchPartyRoomPage from '@/pages/watch-parties/[partyId]/page';
 
 // Error Pages
 import NotFoundPage from '@/pages/not-found/page';
@@ -42,6 +44,10 @@ export default function AppRoutes() {
             {/* Contents */}
             <Route path="/contents" element={<ContentsPage />} />
             <Route path="/contents/:contentId" element={<ContentDetailPage />} />
+
+            {/* Watch Party */}
+            <Route path="/watch-parties" element={<WatchPartiesPage />} />
+            <Route path="/watch-parties/:partyId" element={<WatchPartyRoomPage />} />
 
             {/* Playlists */}
             <Route path="/playlists" element={<PlaylistsPage />} />
