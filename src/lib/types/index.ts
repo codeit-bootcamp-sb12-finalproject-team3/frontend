@@ -13,6 +13,8 @@ import type {
 } from './playlists';
 
 export type {
+  ContentCreateRequest,
+  ContentCreateResponse,
   ContentGenre,
   ContentSearchParams,
   ContentSort,
@@ -49,7 +51,6 @@ export type ChangePasswordRequest = components['schemas']['ChangePasswordRequest
 
 // Content types
 export type ContentDto = components['schemas']['ContentDto'];
-export type ContentCreateRequest = components['schemas']['ContentCreateRequest'];
 export type ContentUpdateRequest = components['schemas']['ContentUpdateRequest'];
 export type ContentSummary = components['schemas']['ContentSummary'];
 export type ContentChatDto = {

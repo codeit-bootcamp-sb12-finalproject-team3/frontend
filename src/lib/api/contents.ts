@@ -9,6 +9,7 @@
 
 import apiClient from './client';
 import type {
+  ContentCreateResponse,
   ContentDto,
   ContentCreateRequest,
   ContentGenre,
@@ -90,7 +91,9 @@ export const getContent = async (contentId: string): Promise<ContentDto> => {
 export const createContent = async (
   data: ContentCreateRequest,
   thumbnail: File,
-): Promise<ContentDto> => {
+): Promise<ContentCreateResponse> => {
+
+  console.log('CONTENT CREATE REQUEST:', data);
   const formData = new FormData();
 
   // Append request data as JSON blob
@@ -102,7 +105,7 @@ export const createContent = async (
   // Append thumbnail (required)
   formData.append('thumbnail', thumbnail);
 
-  const response = await apiClient.post<ContentDto>('/api/contents', formData, {
+  const response = await apiClient.post<ContentCreateResponse>('/api/contents', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
