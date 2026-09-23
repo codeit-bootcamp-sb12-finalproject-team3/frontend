@@ -62,6 +62,12 @@ export default function SideMenu() {
           collapsed={sideMenuCollapsed}
         />
         <NavItem
+          to="/watch-parties"
+          icon={icTv}
+          label="Watch Party"
+          collapsed={sideMenuCollapsed}
+        />
+        <NavItem
           to="/playlists"
           icon={icPlaylist}
           label="플레이리스트"
