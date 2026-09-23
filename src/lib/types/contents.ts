@@ -18,6 +18,93 @@ export interface ContentSportType {
   name: string;
 }
 
+export interface ContentCastCreateRequest {
+  name: string;
+  roleName?: string;
+  profileImageUrl?: string;
+}
+
+export interface ContentPlatformCreateRequest {
+  platformId: string;
+  url: string;
+}
+
+export interface SeasonCreateRequest {
+  seasonNumber: number;
+  title: string;
+  description: string;
+  thumbnailKey?: string;
+  releaseDate?: string;
+  episodeCount?: number;
+  casts?: ContentCastCreateRequest[];
+  genreIds: string[];
+  tags?: string[];
+  platforms?: ContentPlatformCreateRequest[];
+}
+
+interface ContentCreateRequestBase {
+  title: string;
+  duplicateConfirmed?: boolean;
+}
+
+export interface MovieContentCreateRequest extends ContentCreateRequestBase {
+  type: 'movie';
+  description: string;
+  genreIds: string[];
+  tags?: string[];
+  releaseDate?: string;
+  runtime?: number;
+  originalTitle?: string;
+  casts?: ContentCastCreateRequest[];
+  platforms?: ContentPlatformCreateRequest[];
+}
+
+export interface TvSeriesContentCreateRequest extends ContentCreateRequestBase {
+  type: 'tvSeries';
+  seasons: SeasonCreateRequest[];
+}
+
+export interface TvSeasonContentCreateRequest extends ContentCreateRequestBase {
+  type: 'tvSeason';
+  description: string;
+  parentContentId: string;
+  seasonNumber: number;
+  episodeCount?: number;
+  releaseDate?: string;
+  genreIds: string[];
+  tags?: string[];
+  casts?: ContentCastCreateRequest[];
+  platforms?: ContentPlatformCreateRequest[];
+}
+
+export interface SportContentCreateRequest extends ContentCreateRequestBase {
+  type: 'sport';
+  description: string;
+  sportTypeId: string;
+  homeTeam: string;
+  awayTeam: string;
+  scheduledAt?: string;
+  league?: string;
+  season?: string;
+  round?: string;
+  venue?: string;
+  country?: string;
+  homeScore?: number;
+  awayScore?: number;
+}
+
+export type ContentCreateRequest =
+  | MovieContentCreateRequest
+  | TvSeriesContentCreateRequest
+  | TvSeasonContentCreateRequest
+  | SportContentCreateRequest;
+
+export interface ContentCreateResponse {
+  seriesId: string | null;
+  contentIds: string[];
+  createdAt: string;
+}
+
 export interface ContentSummaryResponse {
   id: string;
   parentContentId: string | null;
