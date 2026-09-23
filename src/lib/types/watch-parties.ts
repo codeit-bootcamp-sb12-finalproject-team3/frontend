@@ -2,6 +2,8 @@ export type WatchPartyStatus = 'SCHEDULED' | 'LIVE' | 'ENDED';
 
 export type WatchPartyPlaybackStatus = 'LIVE' | 'PAUSED' | 'ENDED';
 
+export type WatchPartyPlaybackAction = 'PLAY' | 'PAUSE' | 'SEEK';
+
 export interface WatchPartyHostSummary {
   userId: string;
   name: string;
@@ -37,6 +39,32 @@ export interface WatchPartyResponse extends WatchPartySummaryResponse {
   startedAt: number | null;
   accumulatedPauseMs: number | null;
   pausedAt: number | null;
+}
+
+export interface WatchPartyPlaybackState {
+  status: WatchPartyPlaybackStatus;
+  startedAt: number;
+  accumulatedPauseMs: number;
+  pausedAt: number | null;
+  startEpisode: number | null;
+  endEpisode: number | null;
+  hostId: string;
+  updatedAt: number;
+}
+
+export interface WatchPartyPlaybackControlRequest {
+  action: WatchPartyPlaybackAction;
+  targetElapsedMs?: number;
+}
+
+export interface WatchPartyChatSendRequest {
+  content: string;
+}
+
+export interface WatchPartyChatMessage {
+  senderId: string;
+  content: string;
+  sentAt: number;
 }
 
 export interface CreateWatchPartyRequest {
