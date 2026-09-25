@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import RootLayout from '@/components/layout/RootLayout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import ProtectedLayout from '@/components/layout/ProtectedLayout';
+import PreferenceRequiredRoute from '@/components/layout/PreferenceRequiredRoute';
 
 // Auth Pages
 import SignInPage from '@/pages/sign-in/page';
@@ -12,6 +13,8 @@ import ResetPasswordPage from '@/pages/reset-password/page';
 
 // Protected Pages
 import ContentsPage from '@/pages/contents/page';
+import RecommendationsPage from '@/pages/recommendations/page';
+import PreferenceSelectionPage from '@/pages/preferences/page';
 import ContentDetailPage from '@/pages/contents/[contentId]/page';
 import PlaylistsPage from '@/pages/playlists/page';
 import PlaylistDetailPage from '@/pages/playlists/[playlistId]/page';
@@ -35,29 +38,37 @@ export default function AppRoutes() {
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
-          <Route element={<ProtectedLayout />}>
-            {/* Home redirect to contents */}
-            <Route index element={<Navigate to="/contents" replace />} />
+          {/* Initial preference onboarding has no GNB or side menu. */}
+          <Route path="/preferences" element={<PreferenceSelectionPage />} />
 
-            {/* Contents */}
-            <Route path="/contents" element={<ContentsPage />} />
-            <Route path="/contents/:contentId" element={<ContentDetailPage />} />
+          <Route element={<PreferenceRequiredRoute />}>
+            <Route element={<ProtectedLayout />}>
+              {/* Home redirect to contents */}
+              <Route index element={<Navigate to="/contents" replace />} />
 
-            {/* Playlists */}
-            <Route path="/playlists" element={<PlaylistsPage />} />
-            <Route path="/playlists/:playlistId" element={<PlaylistDetailPage />} />
+              {/* Recommendations */}
+              <Route path="/recommendations" element={<RecommendationsPage />} />
 
-            {/* Users */}
-            <Route path="/profiles" element={<ProfileRoutePage />} />
-            <Route path="/profiles/:userId" element={<ProfilePage />} />
+              {/* Contents */}
+              <Route path="/contents" element={<ContentsPage />} />
+              <Route path="/contents/:contentId" element={<ContentDetailPage />} />
 
-            {/* Conversations */}
-            <Route path="/conversations/with" element={<ConversationWithPage />} />
-            <Route path="/conversations" element={<ConversationsPage />} />
-            <Route path="/conversations/:conversationId" element={<ConversationsPage />} />
+              {/* Playlists */}
+              <Route path="/playlists" element={<PlaylistsPage />} />
+              <Route path="/playlists/:playlistId" element={<PlaylistDetailPage />} />
 
-            {/* Admin */}
-            <Route path="/admin/users" element={<AdminUsersPage />} />
+              {/* Users */}
+              <Route path="/profiles" element={<ProfileRoutePage />} />
+              <Route path="/profiles/:userId" element={<ProfilePage />} />
+
+              {/* Conversations */}
+              <Route path="/conversations/with" element={<ConversationWithPage />} />
+              <Route path="/conversations" element={<ConversationsPage />} />
+              <Route path="/conversations/:conversationId" element={<ConversationsPage />} />
+
+              {/* Admin */}
+              <Route path="/admin/users" element={<AdminUsersPage />} />
+            </Route>
           </Route>
         </Route>
 
