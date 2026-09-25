@@ -13,6 +13,8 @@ import type {
 } from './playlists';
 
 export type {
+  ContentCreateRequest,
+  ContentCreateResponse,
   ContentGenre,
   ContentSearchParams,
   ContentSort,
@@ -32,6 +34,22 @@ export type {
   PlaylistSortBy,
   PlaylistSummary,
 } from './playlists';
+export type {
+  CreateWatchPartyRequest,
+  CursorPageWatchPartyResponse,
+  WatchPartyContentSummary,
+  WatchPartyHostSummary,
+  WatchPartyChatMessage,
+  WatchPartyChatSendRequest,
+  WatchPartyPlaybackAction,
+  WatchPartyPlaybackControlRequest,
+  WatchPartyPlaybackState,
+  WatchPartyPlaybackStatus,
+  WatchPartyResponse,
+  WatchPartySearchParams,
+  WatchPartyStatus,
+  WatchPartySummaryResponse,
+} from './watch-parties';
 
 // User types
 export type UserDto = components['schemas']['UserDto'];
@@ -49,7 +67,6 @@ export type ChangePasswordRequest = components['schemas']['ChangePasswordRequest
 
 // Content types
 export type ContentDto = components['schemas']['ContentDto'];
-export type ContentCreateRequest = components['schemas']['ContentCreateRequest'];
 export type ContentUpdateRequest = components['schemas']['ContentUpdateRequest'];
 export type ContentSummary = components['schemas']['ContentSummary'];
 export type ContentChatDto = {

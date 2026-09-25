@@ -1,4 +1,10 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import {
+  Navigate,
+  Route,
+  RouterProvider,
+  createHashRouter,
+  createRoutesFromElements,
+} from 'react-router-dom';
 
 // Layouts
 import RootLayout from '@/components/layout/RootLayout';
@@ -22,14 +28,15 @@ import ProfilePage from '@/pages/profiles/[userId]/page';
 import ConversationsPage from '@/pages/conversations/page';
 import ConversationWithPage from '@/pages/conversations/with/page';
 import AdminUsersPage from '@/pages/admin/users/page';
+import WatchPartiesPage from '@/pages/watch-parties/page';
+import WatchPartyRoomPage from '@/pages/watch-parties/[partyId]/page';
 
 // Error Pages
 import NotFoundPage from '@/pages/not-found/page';
 import ProfileRoutePage from "@/pages/profiles/page.tsx";
 
-export default function AppRoutes() {
-  return (
-    <Routes>
+const router = createHashRouter(
+  createRoutesFromElements(
       <Route element={<RootLayout />}>
         {/* Public Auth Routes */}
         <Route path="/sign-in" element={<SignInPage />} />
@@ -47,7 +54,17 @@ export default function AppRoutes() {
               <Route index element={<Navigate to="/contents" replace />} />
 
               {/* Recommendations */}
-              <Route path="/recommendations" element={<RecommendationsPage />} />
+              <Route
+                path="/recommendations"
+                element={<RecommendationsPage />}
+              />
+
+              {/* Watch Party */}
+              <Route path="/watch-parties" element={<WatchPartiesPage />} />
+              <Route
+                path="/watch-parties/:partyId"
+                element={<WatchPartyRoomPage />}
+              />
 
               {/* Contents */}
               <Route path="/contents" element={<ContentsPage />} />
@@ -75,6 +92,9 @@ export default function AppRoutes() {
         {/* 404 Not Found */}
         <Route path="*" element={<NotFoundPage />} />
       </Route>
-    </Routes>
-  );
+  ),
+);
+
+export default function AppRoutes() {
+  return <RouterProvider router={router} />;
 }
