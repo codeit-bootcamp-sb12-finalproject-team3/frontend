@@ -24,8 +24,8 @@ interface RecommendationStore {
   playlists: SectionState<PlaylistSummary>;
   trending: SectionState<ContentSummaryResponse>;
   newContents: SectionState<ContentSummaryResponse>;
-  initialized: boolean;
-  fetchAll: () => Promise<void>;
+  initializedUserId: string | null;
+  fetchAll: (userId: string) => Promise<void>;
   retry: (section: RecommendationSectionKey) => Promise<void>;
 }
 
@@ -41,13 +41,13 @@ const useRecommendationStore = create<RecommendationStore>((set, get) => ({
   playlists: initialSection<PlaylistSummary>(),
   trending: initialSection<ContentSummaryResponse>(),
   newContents: initialSection<ContentSummaryResponse>(),
-  initialized: false,
+  initializedUserId: null,
 
-  fetchAll: async () => {
-    if (get().initialized) return;
+  fetchAll: async (userId) => {
+    if (get().initializedUserId === userId) return;
 
     set({
-      initialized: true,
+      initializedUserId: userId,
       contents: { data: [], loading: true },
       playlists: { data: [], loading: true },
       trending: { data: [], loading: true },
@@ -60,6 +60,9 @@ const useRecommendationStore = create<RecommendationStore>((set, get) => ({
       getTrendingContents(),
       getNewContents(),
     ]);
+
+    // 계정 전환 중 이전 사용자의 요청이 늦게 끝난 경우 결과를 반영하지 않는다.
+    if (get().initializedUserId !== userId) return;
 
     set({
       contents: contents.status === 'fulfilled'

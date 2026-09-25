@@ -2,18 +2,42 @@ import { useEffect } from 'react';
 import ContentCard from '@/pages/contents/components/ContentCard';
 import PlaylistCard from '@/pages/playlists/components/PlaylistCard';
 import useRecommendationStore from '@/lib/stores/useRecommendationStore';
+import { useAuthStore } from '@/lib/stores/useAuthStore';
 import RecommendationShelf from './components/RecommendationShelf';
 
 const contentItemClassName = 'w-[210px] sm:w-[230px] xl:w-[250px]';
 const playlistItemClassName = 'w-[min(430px,calc(100vw-120px))] min-w-[300px]';
 
 export default function RecommendationsPage() {
-  const { contents, playlists, trending, newContents, fetchAll, retry } =
-    useRecommendationStore();
+  const userId = useAuthStore((state) => state.data?.userDto.id);
+  const {
+    contents: storedContents,
+    playlists: storedPlaylists,
+    trending: storedTrending,
+    newContents: storedNewContents,
+    initializedUserId,
+    fetchAll,
+    retry,
+  } = useRecommendationStore();
+  const isCurrentUser = initializedUserId === userId;
+  const contents = isCurrentUser
+    ? storedContents
+    : { data: [], loading: true };
+  const playlists = isCurrentUser
+    ? storedPlaylists
+    : { data: [], loading: true };
+  const trending = isCurrentUser
+    ? storedTrending
+    : { data: [], loading: true };
+  const newContents = isCurrentUser
+    ? storedNewContents
+    : { data: [], loading: true };
 
   useEffect(() => {
-    void fetchAll();
-  }, [fetchAll]);
+    if (!userId) return;
+
+    void fetchAll(userId);
+  }, [fetchAll, userId]);
 
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-16 overflow-hidden px-5 py-10 sm:px-8 xl:px-[70px]">
