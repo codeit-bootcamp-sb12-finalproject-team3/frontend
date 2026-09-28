@@ -919,8 +919,12 @@ export interface components {
             role: "USER" | "ADMIN";
         };
         ChangePasswordRequest: {
+            /** @description 현재 비밀번호 */
+            currentPassword: string;
             /** @description 새 비밀번호 */
-            password: string;
+            newPassword: string;
+            /** @description 새 비밀번호 확인 */
+            newPasswordConfirm: string;
         };
         UserLockUpdateRequest: {
             /** @description 변경할 잠금 상태 */

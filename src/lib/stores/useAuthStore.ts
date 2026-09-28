@@ -23,9 +23,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set, get,
         () => signIn({ email, password }),
         {
-          shouldThrow: true
+          shouldThrow: true,
+          ignoreLoading: true,
         }
-    )
+    );
   },
 
   signInWithOAuth: async (code: string) => {

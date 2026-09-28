@@ -17,7 +17,7 @@ interface VerifyTempPasswordFormData {
 
 interface VerifyTempPasswordFormProps {
   email: string;
-  onSuccess: () => void;
+  onSuccess: (tempPassword: string) => void;
 }
 
 export default function VerifyTempPasswordForm({
@@ -57,11 +57,11 @@ export default function VerifyTempPasswordForm({
       toast.success('임시 비밀번호 확인 완료');
 
       // Move to step 3 (password change)
-      onSuccess();
+      onSuccess(data.tempPassword);
     } catch (error) {
       console.error('Temporary password not matched.', error);
 
-      toast.error('임시 비밀번호가 일치하지 않습니다. 다시 시도해주세요.');
+      toast.error('임시 비밀번호 인증에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsLoading(false);
     }
