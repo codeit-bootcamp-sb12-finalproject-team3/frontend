@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import useConversationStore from '@/lib/stores/useConversationStore';
-import { useSseStore } from '@/lib/stores/sseStore';
-import { getConversationById } from '@/lib/api/conversations';
 import ConversationItem from './ConversationItem';
 import icSearch from '@/assets/ic_search.svg';
-import type { DirectMessageDto } from '@/lib/types';
 
 interface ConversationListProps {
   selectedConversationId?: string;
@@ -15,7 +12,6 @@ interface ConversationListProps {
 export default function ConversationList({ selectedConversationId, onSelectConversation }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: conversations, loading, fetch, fetchMore, hasNext, updateParams } = useConversationStore();
-  const { subscribe, unsubscribe } = useSseStore();
 
   // Infinite scroll sentinel
   const { ref: sentinelRef, inView } = useInView({
@@ -27,39 +23,6 @@ export default function ConversationList({ selectedConversationId, onSelectConve
   useEffect(() => {
     fetch();
   }, [fetch]);
-
-  // Subscribe to direct messages SSE
-  useEffect(() => {
-    subscribe('direct-messages', async (message: DirectMessageDto) => {
-      const { conversationId } = message;
-      const currentConversations = useConversationStore.getState().data;
-
-      // Check if conversation exists in current list
-      const existingConversation = currentConversations.find(
-        (conv) => conv.id === conversationId
-      );
-
-      if (existingConversation) {
-        // Update existing conversation with new message
-        useConversationStore.getState().update(conversationId, {
-          lastestMessage: message,
-          hasUnread: selectedConversationId !== conversationId, // Only mark unread if not selected
-        });
-      } else {
-        // Fetch full conversation data and add to list
-        try {
-          const conversation = await getConversationById(conversationId);
-          useConversationStore.getState().add(conversation);
-        } catch (error) {
-          console.error('Failed to fetch conversation:', error);
-        }
-      }
-    });
-
-    return () => {
-      unsubscribe('direct-messages');
-    };
-  }, [subscribe, unsubscribe, selectedConversationId]);
 
   // Fetch more when sentinel is in view
   useEffect(() => {

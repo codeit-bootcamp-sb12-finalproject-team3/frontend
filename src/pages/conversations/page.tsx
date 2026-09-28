@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import { useWebSocketStore } from '@/lib/stores/websocketStore';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
@@ -6,23 +6,41 @@ import useDirectMessageStore from '@/lib/stores/useDirectMessageStore';
 import ConversationList from './components/ConversationList';
 import MessageThread from './components/MessageThread';
 import EmptyState from './components/EmptyState';
-import type { DirectMessageDto } from '@/lib/types';
-import {markDirectMessageAsRead} from "@/lib/api";
+import type { DirectMessageDto, DmMessageCreatedPayload } from '@/lib/types';
+import {getConversationById, markDirectMessageAsRead} from "@/lib/api";
 import useConversationStore from "@/lib/stores/useConversationStore.ts";
 
 export default function ConversationsPage() {
   const navigate = useNavigate();
   const { conversationId: selectedConversationId  } = useParams<{ conversationId: string }>();
   const [isConnecting, setIsConnecting] = useState(false);
-  const {update: updateConversation} = useConversationStore();
+  const selectedConversationIdRef = useRef(selectedConversationId);
 
   // Stores
   const { connect, subscribe, unsubscribe, isConnected, send } = useWebSocketStore();
   const { data: authentication } = useAuthStore();
 
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (!isConnected || !selectedConversationId) return;
+
+    send('/pub/dm/conversations/activate', {
+      conversationId: selectedConversationId,
+    });
+
+    return () => {
+      send('/pub/dm/conversations/deactivate', {
+        conversationId: selectedConversationId,
+      });
+    };
+  }, [isConnected, selectedConversationId, send]);
+
   // WebSocket connection and subscription
   useEffect(() => {
-    if (!selectedConversationId || !authentication) return;
+    if (!authentication) return;
 
     const accessToken = authentication.accessToken;
 
@@ -35,12 +53,45 @@ export default function ConversationsPage() {
           await connect(accessToken);
         }
 
-        // Subscribe to conversation-specific message channel
-        subscribe(`/sub/conversations/${selectedConversationId}/direct-messages`, (message: DirectMessageDto) => {
-          // Add new message to store
-          useDirectMessageStore.getState().add(message);
-          markDirectMessageAsRead(selectedConversationId, message.id);
-          updateConversation(selectedConversationId, {lastestMessage: message, hasUnread: false});
+        subscribe('/user/queue/dm', async (payload: DmMessageCreatedPayload) => {
+          const message: DirectMessageDto = {
+            id: payload.messageId,
+            conversationId: payload.conversationId,
+            senderId: payload.senderId,
+            content: payload.content,
+            createdAt: payload.createdAt,
+            readAt: null,
+          };
+          const currentConversationId = selectedConversationIdRef.current;
+          const isCurrentConversation = currentConversationId === payload.conversationId;
+
+          if (isCurrentConversation) {
+            useDirectMessageStore.getState().add(message);
+            void markDirectMessageAsRead(payload.conversationId, payload.messageId);
+          }
+
+          const conversationStore = useConversationStore.getState();
+          const existingConversation = conversationStore.data.find(
+            (conversation) => conversation.id === payload.conversationId,
+          );
+
+          if (existingConversation) {
+            conversationStore.update(payload.conversationId, {
+              latestMessage: message,
+              hasUnread: !isCurrentConversation,
+            });
+          } else {
+            try {
+              const conversation = await getConversationById(payload.conversationId);
+              useConversationStore.getState().add({
+                ...conversation,
+                latestMessage: message,
+                hasUnread: !isCurrentConversation,
+              });
+            } catch (error) {
+              console.error('Failed to fetch conversation:', error);
+            }
+          }
         });
       } catch (error) {
         console.error('WebSocket setup failed:', error);
@@ -51,11 +102,11 @@ export default function ConversationsPage() {
 
     setupWebSocket();
 
-    // Cleanup on unmount or conversation change
+    // Keep one user-queue subscription for the lifetime of this connection.
     return () => {
-      unsubscribe(`/sub/conversations/${selectedConversationId}/direct-messages`);
+      unsubscribe('/user/queue/dm');
     };
-  }, [selectedConversationId, authentication, isConnected, connect, subscribe, unsubscribe]);
+  }, [authentication, isConnected, connect, subscribe, unsubscribe]);
 
   // Handle conversation selection
   const handleSelectConversation = (conversationId: string) => {
@@ -67,7 +118,8 @@ export default function ConversationsPage() {
     if (!selectedConversationId) return;
 
     try {
-      send(`/pub/conversations/${selectedConversationId}/direct-messages`, {
+      send('/pub/dm/messages', {
+        conversationId: selectedConversationId,
         content,
       });
     } catch (error) {

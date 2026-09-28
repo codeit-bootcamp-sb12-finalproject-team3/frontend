@@ -144,7 +144,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/conversations/{conversationId}/direct-messages/{directMessageId}/read": {
+    "/api/conversations/{conversationId}/read": {
         parameters: {
             query?: never;
             header?: never;
@@ -532,23 +532,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/conversations/with": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 특정 사용자와의 대화 조회 */
-        get: operations["findConversationWithUser"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/contents/{contentId}/watching-sessions": {
         parameters: {
             query?: never;
@@ -807,20 +790,39 @@ export interface components {
              * Format: uuid
              * @description 대화 상대 정보 ID
              */
-            withUserId: string;
+            peerId: string;
         };
-        ConversationDto: {
+        ConversationResponse: {
             /**
              * Format: uuid
              * @description 대화 ID
              */
             id: string;
             /** @description 대화 상대 정보 */
-            with: components["schemas"]["UserSummary"];
+            peer: components["schemas"]["UserSummary"];
             /** @description 마지막 메시지 내용 */
-            lastestMessage: components["schemas"]["DirectMessageDto"];
+            latestMessage: components["schemas"]["DirectMessageDto"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ConversationListResponse: {
+            /**
+             * Format: uuid
+             * @description 대화 ID
+             */
+            id: string;
+            /** @description 대화 상대 정보 */
+            peer: components["schemas"]["UserSummary"];
+            /** @description 마지막 메시지 내용 */
+            latestMessage: components["schemas"]["DirectMessageDto"] | null;
             /** @description 읽지 않은 메시지 존재 여부 */
             hasUnread: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         DirectMessageDto: {
             /**
@@ -838,12 +840,15 @@ export interface components {
              * @description 메시지 생성 시간
              */
             createdAt: string;
-            /** @description 발신자 정보 */
-            sender: components["schemas"]["UserSummary"];
-            /** @description 수신자 정보 */
-            receiver: components["schemas"]["UserSummary"];
+            /**
+             * Format: uuid
+             * @description 발신자 ID
+             */
+            senderId: string;
             /** @description 메시지 내용 */
             content: string;
+            /** @description 메시지 읽음 시간 */
+            readAt: string | null;
         };
         ContentCreateRequest: {
             /**
@@ -1099,9 +1104,9 @@ export interface components {
              */
             level: "INFO" | "WARNING" | "ERROR";
         };
-        CursorResponseConversationDto: {
+        CursorResponseConversationListResponse: {
             /** @description 데이터 목록 */
-            data: components["schemas"]["ConversationDto"][];
+            data: components["schemas"]["ConversationListResponse"][];
             /** @description 다음 커서 */
             nextCursor?: string;
             /**
@@ -1909,7 +1914,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["CursorResponseConversationDto"];
+                    "*/*": components["schemas"]["CursorResponseConversationListResponse"];
                 };
             };
             /** @description 잘못된 요청 */
@@ -1960,7 +1965,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ConversationDto"];
+                    "*/*": components["schemas"]["ConversationResponse"];
                 };
             };
             /** @description 잘못된 요청 */
@@ -1998,14 +2003,20 @@ export interface operations {
             header?: never;
             path: {
                 conversationId: string;
-                directMessageId: string;
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    lastReadMessageId: string;
+                };
+            };
+        };
         responses: {
             /** @description 성공 */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3411,7 +3422,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ConversationDto"];
+                    "*/*": components["schemas"]["ConversationResponse"];
                 };
             };
             /** @description 잘못된 요청 */
@@ -3494,64 +3505,6 @@ export interface operations {
             };
             /** @description 인증 오류 */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description 서버 오류 */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    findConversationWithUser: {
-        parameters: {
-            query: {
-                userId: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 성공 */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ConversationDto"];
-                };
-            };
-            /** @description 잘못된 요청 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description 인증 오류 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description 해당 리소스 없음 */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };

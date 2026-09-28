@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getConversationWithUser, createConversation } from '@/lib/api/conversations';
-import type { ConversationDto } from '@/lib/types';
-import {isAxiosError} from "axios";
-import {toast} from "sonner";
+import { isCancel } from 'axios';
+import { createConversation } from '@/lib/api/conversations';
 
 export default function ConversationWithPage() {
   const navigate = useNavigate();
@@ -28,42 +26,18 @@ export default function ConversationWithPage() {
         setLoading(true);
         setError(null);
 
-        let existingConversation: ConversationDto | null = null;
-
-        // Check if conversation exists (handle 404 as "not found")
-        try {
-          existingConversation = await getConversationWithUser(userId);
-        } catch (err) {
-          // 404 means no conversation exists yet, which is fine
-          if (isAxiosError(err) && err.response?.status === 404) {
-            // Continue to create new conversation
-          } else {
-            throw err; // Re-throw if it's not a 404
-          }
-        }
+        const conversation = await createConversation(
+          { peerId: userId },
+          abortController.signal,
+        );
 
         // Check if request was aborted before navigation
         if (abortController.signal.aborted) return;
 
-        if (existingConversation) {
-          // Redirect to existing conversation
-          navigate(`/conversations/${existingConversation.id}`, { replace: true });
-        } else {
-          // Create new conversation
-          const newConversation: ConversationDto = await createConversation({
-            withUserId: userId,
-          });
-          toast.info('새로운 대화를 시작합니다.');
-
-          // Check if request was aborted before navigation
-          if (abortController.signal.aborted) return;
-
-          // Redirect to new conversation
-          navigate(`/conversations/${newConversation.id}`, { replace: true });
-        }
+        navigate(`/conversations/${conversation.id}`, { replace: true });
       } catch (err) {
-        // Ignore abort errors
-        if (err instanceof Error && err.name === 'AbortError') return;
+        // Axios cancellation is expected when this effect is cleaned up.
+        if (isCancel(err) || (err instanceof Error && err.name === 'AbortError')) return;
 
         console.error('Failed to initialize conversation:', err);
         setError('대화를 시작할 수 없습니다. 다시 시도해 주세요.');
