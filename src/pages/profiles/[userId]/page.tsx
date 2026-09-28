@@ -6,6 +6,7 @@ import SubscribedPlaylistSection
 import {Button} from "@/components/ui/button.tsx";
 import LikedContentsSection from "./components/LikedContentsSection";
 import MyReviewsSection from "./components/MyReviewsSection";
+import ScheduledWatchPartiesSection from "./components/ScheduledWatchPartiesSection";
 import useAuthStore from "@/lib/stores/useAuthStore";
 
 
@@ -28,6 +29,7 @@ export default function ProfilePage() {
     <div className="w-full min-h-screen bg-background">
       <div className="max-w-[1680px] mx-auto px-[70px] py-[60px]">
         <UserProfileSection userId={userId}/>
+        {myUserId === userId && <ScheduledWatchPartiesSection/>}
         <OwnedPlaylistsSection userId={userId}/>
         <SubscribedPlaylistSection userId={userId}/>
         {myUserId === userId && (
