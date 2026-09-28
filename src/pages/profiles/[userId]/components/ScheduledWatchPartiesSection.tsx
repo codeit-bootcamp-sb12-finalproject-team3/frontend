@@ -21,11 +21,7 @@ export default function ScheduledWatchPartiesSection() {
   }, []);
 
   return (
-    <section className="mt-[60px]">
-      <div className="mb-[20px] flex items-center gap-2">
-        <h2 className="text-header1-sb text-gray-50">시청 예약 중인 Watch Party</h2>
-        <span className="text-header1-sb text-gray-500">{parties.length}</span>
-      </div>
+    <section className="">
       {loading && <p className="py-8 text-center text-body2-m text-gray-400">불러오는 중...</p>}
       {!loading && error && <p className="py-8 text-center text-body2-m text-red-notification">시청 예약 목록을 불러오지 못했습니다.</p>}
       {!loading && !error && parties.length === 0 && <p className="py-8 text-center text-body2-m text-gray-400">시청 예약 중인 Watch Party가 없습니다.</p>}

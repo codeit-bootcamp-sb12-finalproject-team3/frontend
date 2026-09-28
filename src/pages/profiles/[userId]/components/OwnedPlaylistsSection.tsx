@@ -1,6 +1,6 @@
 import PlaylistCard from "@/pages/playlists/components/PlaylistCard";
 import useOwnedPlaylistStore from "@/lib/stores/useOwnedPlaylistStore";
-import {useCallback, useEffect, useRef} from "react";
+import {useEffect, useRef} from "react";
 import PlaylistCardSkeleton from "./PlaylistCardSkeleton";
 
 
@@ -17,7 +17,7 @@ export default function OwnedPlaylistsSection({userId}: {userId: string}) {
 
   const ownedPlaylistsTotal = ownedPlaylistsCount();
 
-  const ownedPlaylistsScrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Fetch owned playlists
   useEffect(() => {
@@ -32,40 +32,25 @@ export default function OwnedPlaylistsSection({userId}: {userId: string}) {
     };
   }, [userId, updateOwnedPlaylistsParams, clearOwnedPlaylists]);
 
-  // Infinite scroll handler for owned playlists
-  const handleOwnedPlaylistsScroll = useCallback(() => {
-    const container = ownedPlaylistsScrollRef.current;
-    if (!container) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const scrolledToBottom = scrollHeight - scrollTop - clientHeight < 100;
-
-    if (scrolledToBottom && hasNextOwnedPlaylists() && !ownedPlaylistsLoading) {
-      fetchMoreOwnedPlaylists();
-    }
-  }, [hasNextOwnedPlaylists, ownedPlaylistsLoading, fetchMoreOwnedPlaylists]);
-
-  // Attach scroll listeners
+  // Observe the end of the list as the page itself scrolls.
   useEffect(() => {
-    const ownedContainer = ownedPlaylistsScrollRef.current;
-    if (ownedContainer) {
-      ownedContainer.addEventListener('scroll', handleOwnedPlaylistsScroll);
-      return () => ownedContainer.removeEventListener('scroll', handleOwnedPlaylistsScroll);
-    }
-  }, [handleOwnedPlaylistsScroll]);
+    const target = loadMoreRef.current;
+    if (!target || !hasNextOwnedPlaylists() || ownedPlaylistsLoading) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && hasNextOwnedPlaylists() && !ownedPlaylistsLoading) {
+        void fetchMoreOwnedPlaylists();
+      }
+    }, {root: null, rootMargin: '200px'});
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasNextOwnedPlaylists, ownedPlaylistsLoading, fetchMoreOwnedPlaylists, ownedPlaylists.length]);
 
   return (
     <>
       {/* Owned Playlists Section */}
       <section className="mb-[60px]">
-        <div className="flex items-center gap-2 mb-[20px]">
-          <h2 className="text-header1-sb text-gray-50">플레이리스트</h2>
-          <span className="text-header1-sb text-gray-500">{ownedPlaylistsTotal}</span>
-        </div>
-
         <div
-            ref={ownedPlaylistsScrollRef}
-            className="h-[300px] py-1 pl-2 overflow-y-auto overflow-x-hidden pr-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+            className="py-1 pl-2 pr-2"
         >
           {ownedPlaylistsLoading && ownedPlaylists.length === 0 ? (
               <div className="grid sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-x-[30px] gap-y-[40px]">
@@ -92,6 +77,7 @@ export default function OwnedPlaylistsSection({userId}: {userId: string}) {
               </div>
           )}
         </div>
+        <div ref={loadMoreRef} aria-hidden="true" className="h-px" />
       </section>
     </>
   );

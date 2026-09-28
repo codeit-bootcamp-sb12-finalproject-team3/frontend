@@ -8,17 +8,15 @@ const initialCursor: Cursor = {nextCursor: null, nextIdAfter: null, hasNext: fal
 
 export default function LikedContentsSection({userId}: {userId: string}) {
   const [contents, setContents] = useState<ContentSummaryResponse[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
   const [cursor, setCursor] = useState<Cursor>(initialCursor);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const loadingRef = useRef(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
     setContents([]);
-    setTotalCount(0);
     setCursor(initialCursor);
     setError(undefined);
     setLoading(true);
@@ -28,7 +26,6 @@ export default function LikedContentsSection({userId}: {userId: string}) {
       .then((response) => {
         if (cancelled) return;
         setContents(response.data);
-        setTotalCount(response.totalCount);
         setCursor(response);
       })
       .catch(() => {
@@ -57,7 +54,6 @@ export default function LikedContentsSection({userId}: {userId: string}) {
         idAfter: cursor.nextIdAfter,
       });
       setContents((previous) => Array.from(new Map([...previous, ...response.data].map((item) => [item.id, item])).values()));
-      setTotalCount(response.totalCount);
       setCursor(response);
     } catch {
       setError('좋아요한 콘텐츠를 추가로 불러오지 못했습니다.');
@@ -67,23 +63,23 @@ export default function LikedContentsSection({userId}: {userId: string}) {
     }
   }, [cursor, userId]);
 
-  const handleScroll = () => {
-    const container = scrollRef.current;
-    if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 100) {
-      void fetchMore();
-    }
-  };
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !cursor.hasNext || loading) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) void fetchMore();
+    }, {root: null, rootMargin: '200px'});
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [cursor.hasNext, loading, fetchMore]);
 
   return (
-    <section className="mt-[60px]">
-      <div className="flex items-center gap-2 mb-[20px]">
-        <h2 className="text-header1-sb text-gray-50">좋아요한 콘텐츠</h2>
-        <span className="text-header1-sb text-gray-500">{totalCount}</span>
-      </div>
-      <div ref={scrollRef} onScroll={handleScroll} className="h-[420px] py-1 pl-2 pr-2 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+    <section className="">
+      <div className="py-1 pl-2 pr-2">
         <ContentGrid contents={contents} loading={loading} error={error}/>
         {error && contents.length > 0 && <p className="mt-3 text-body2-m text-red-notification">{error}</p>}
         {loading && contents.length > 0 && <p className="py-4 text-center text-body2-m text-gray-400">불러오는 중...</p>}
+        <div ref={loadMoreRef} aria-hidden="true" className="h-px" />
       </div>
     </section>
   );

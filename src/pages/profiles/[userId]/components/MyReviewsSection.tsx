@@ -10,12 +10,11 @@ const initialCursor: Cursor = {nextCursor: undefined, nextIdAfter: undefined, ha
 export default function MyReviewsSection({userId}: {userId: string}) {
   const [reviews, setReviews] = useState<ReviewDto[]>([]);
   const [titles, setTitles] = useState<Record<string, string>>({});
-  const [totalCount, setTotalCount] = useState(0);
   const [cursor, setCursor] = useState<Cursor>(initialCursor);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const loadingRef = useRef(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const loadTitles = useCallback(async (items: ReviewDto[], isCancelled: () => boolean) => {
     const contentIds = [...new Set(items.map((review) => review.contentId))];
@@ -34,7 +33,6 @@ export default function MyReviewsSection({userId}: {userId: string}) {
     let cancelled = false;
     setReviews([]);
     setTitles({});
-    setTotalCount(0);
     setCursor(initialCursor);
     setError(undefined);
     setLoading(true);
@@ -44,7 +42,6 @@ export default function MyReviewsSection({userId}: {userId: string}) {
       .then((response) => {
         if (cancelled) return;
         setReviews(response.data);
-        setTotalCount(response.totalCount);
         setCursor(response);
         void loadTitles(response.data, () => cancelled);
       })
@@ -76,7 +73,6 @@ export default function MyReviewsSection({userId}: {userId: string}) {
         idAfter: cursor.nextIdAfter,
       });
       setReviews((previous) => Array.from(new Map([...previous, ...response.data].map((item) => [item.id, item])).values()));
-      setTotalCount(response.totalCount);
       setCursor(response);
       void loadTitles(response.data, () => false);
     } catch {
@@ -87,18 +83,19 @@ export default function MyReviewsSection({userId}: {userId: string}) {
     }
   }, [cursor, userId, loadTitles]);
 
-  const handleScroll = () => {
-    const container = scrollRef.current;
-    if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 100) void fetchMore();
-  };
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !cursor.hasNext || loading) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) void fetchMore();
+    }, {root: null, rootMargin: '200px'});
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [cursor.hasNext, loading, fetchMore]);
 
   return (
-    <section className="mt-[60px]">
-      <div className="flex items-center gap-2 mb-[20px]">
-        <h2 className="text-header1-sb text-gray-50">내가 작성한 리뷰</h2>
-        <span className="text-header1-sb text-gray-500">{totalCount}</span>
-      </div>
-      <div ref={scrollRef} onScroll={handleScroll} className="h-[420px] py-1 pl-2 pr-2 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
+    <section className="">
+      <div className="py-1 pl-2 pr-2">
         {loading && reviews.length === 0 && <p className="py-8 text-center text-body2-m text-gray-400">불러오는 중...</p>}
         {error && reviews.length === 0 && <p className="py-8 text-center text-body2-m text-red-notification">{error}</p>}
         {!loading && !error && reviews.length === 0 && <p className="py-8 text-center text-body2-m text-gray-400">작성한 리뷰가 없습니다.</p>}
@@ -117,6 +114,7 @@ export default function MyReviewsSection({userId}: {userId: string}) {
         </div>
         {error && reviews.length > 0 && <p className="mt-3 text-body2-m text-red-notification">{error}</p>}
         {loading && reviews.length > 0 && <p className="py-4 text-center text-body2-m text-gray-400">불러오는 중...</p>}
+        <div ref={loadMoreRef} aria-hidden="true" className="h-px" />
       </div>
     </section>
   );
