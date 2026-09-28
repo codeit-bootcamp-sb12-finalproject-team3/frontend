@@ -20,11 +20,18 @@ interface PlaylistSortDropdownProps {
 
 const SORT_OPTIONS: (SortOption & { value: string })[] = [
   { value: 'latest', label: '최신순', sortBy: 'createdAt', sortDirection: 'DESCENDING' },
+  { value: 'oldest', label: '오래된순', sortBy: 'createdAt', sortDirection: 'ASCENDING' },
   {
     value: 'popular',
     label: '주간 인기순',
     sortBy: 'weeklyPopularityScore',
     sortDirection: 'DESCENDING',
+  },
+  {
+    value: 'popular-asc',
+    label: '주간 인기 낮은순',
+    sortBy: 'weeklyPopularityScore',
+    sortDirection: 'ASCENDING',
   },
 ];
 

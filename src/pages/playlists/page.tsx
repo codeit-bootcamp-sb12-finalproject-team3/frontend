@@ -5,6 +5,7 @@ import PlaylistSortDropdown, { type SortOption } from './components/PlaylistSort
 import PlaylistGrid from './components/PlaylistGrid';
 import CreatePlaylistDialog from './components/CreatePlaylistDialog';
 import { Button } from '@/components/ui/button';
+import SearchBar from '@/pages/contents/components/SearchBar';
 
 export default function PlaylistsPage() {
   const { data, loading, error, fetch, fetchMore, hasNext, updateParams } = usePlaylistStore();
@@ -30,7 +31,11 @@ export default function PlaylistsPage() {
   // Handle sort change
   const handleSortChange = useCallback(
     (option: SortOption) => {
-      setSortValue(option.sortBy === 'createdAt' ? 'latest' : 'popular');
+      setSortValue(
+          option.sortBy === 'createdAt'
+              ? option.sortDirection === 'ASCENDING' ? 'oldest' : 'latest'
+              : option.sortDirection === 'ASCENDING' ? 'popular-asc' : 'popular'
+      );
       updateParams({
         sortBy: option.sortBy,
         sortDirection: option.sortDirection,
@@ -39,17 +44,26 @@ export default function PlaylistsPage() {
     [updateParams]
   );
 
+  const handleSearch = useCallback(
+      (keyword: string) => {
+        updateParams({ keywordLike: keyword.trim() || undefined });
+      },
+      [updateParams]
+  );
+
   return (
     <div className="flex flex-col gap-10 px-[70px] py-10">
       {/* Page Title */}
       <h1 className="text-header1-b text-white">플레이리스트</h1>
 
-      {/* Sort Bar */}
-      <div className="flex items-center justify-end">
+      {/* Search and Sort Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <SearchBar onSearch={handleSearch} placeholder="플레이리스트 또는 콘텐츠 검색" />
+
         <div className="flex items-center gap-2.5">
           <Button
-            onClick={() => setCreateDialogOpen(true)}
-            className="h-11 rounded-lg bg-pink-600 px-4 text-body3-b text-white hover:bg-pink-700"
+              onClick={() => setCreateDialogOpen(true)}
+              className="h-11 rounded-lg bg-pink-600 px-4 text-body3-b text-white hover:bg-pink-700"
           >
             + 플레이리스트 만들기
           </Button>
