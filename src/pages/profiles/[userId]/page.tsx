@@ -4,11 +4,14 @@ import OwnedPlaylistsSection from "@/pages/profiles/[userId]/components/OwnedPla
 import SubscribedPlaylistSection
   from "@/pages/profiles/[userId]/components/SubscribedPlaylistSection.tsx";
 import {Button} from "@/components/ui/button.tsx";
+import LikedContentsSection from "./components/LikedContentsSection";
+import useAuthStore from "@/lib/stores/useAuthStore";
 
 
 export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const myUserId = useAuthStore((state) => state.data?.userDto.id);
 
   // Error state
   if (!userId) {
@@ -26,6 +29,7 @@ export default function ProfilePage() {
         <UserProfileSection userId={userId}/>
         <OwnedPlaylistsSection userId={userId}/>
         <SubscribedPlaylistSection userId={userId}/>
+        {myUserId === userId && <LikedContentsSection userId={myUserId}/> }
       </div>
     </div>
   );
