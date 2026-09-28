@@ -35,6 +35,7 @@ export interface PlaylistCreateRequest {
 export type PlaylistSortBy = 'createdAt' | 'weeklyPopularityScore';
 
 export interface PlaylistSearchParams {
+  keywordLike?: string;
   ownerIdEqual?: string;
   subscriberIdEqual?: string;
   contentIdEqual?: string;
