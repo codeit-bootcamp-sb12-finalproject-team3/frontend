@@ -4,9 +4,14 @@ import icSearch from '@/assets/ic_search.svg';
 interface SearchBarProps {
   onSearch: (query: string) => void;
   placeholder?: string;
+  maxLength?: number;
 }
 
-export default function SearchBar({ onSearch, placeholder = '검색어를 입력하세요' }: SearchBarProps) {
+export default function SearchBar({
+                                    onSearch,
+                                    placeholder = '검색어를 입력하세요',
+                                    maxLength,
+                                  }: SearchBarProps) {
   const [value, setValue] = useState('');
   const lastSubmittedValue = useRef('');
   const initialRender = useRef(true);
@@ -38,7 +43,7 @@ export default function SearchBar({ onSearch, placeholder = '검색어를 입력
       <input
         type="text"
         value={value}
-        maxLength={100}
+        maxLength={maxLength}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
