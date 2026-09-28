@@ -8,6 +8,7 @@ import icPlaylist from '@/assets/ic_playlist.svg';
 import icProfileMenu from '@/assets/ic_profile_menu.svg';
 import icPlane from '@/assets/ic_plane.svg';
 import icSetting from '@/assets/ic_setting.svg';
+import icLogoIcon from '@/assets/ic_logo_icon.svg';
 
 interface NavItemProps {
   to: string;
@@ -55,6 +56,12 @@ export default function SideMenu() {
           sideMenuCollapsed ? 'px-[10px]' : 'px-[30px]'
         )}
       >
+        <NavItem
+          to="/recommendations"
+          icon={icLogoIcon}
+          label="맞춤 추천"
+          collapsed={sideMenuCollapsed}
+        />
         <NavItem
           to="/contents"
           icon={icTv}
