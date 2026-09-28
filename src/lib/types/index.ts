@@ -53,6 +53,8 @@ export type {
 
 // User types
 export type UserDto = components['schemas']['UserDto'];
+// GET/PATCH /api/users/{userId} returns only these public profile fields.
+export type UserProfile = Pick<UserDto, 'id' | 'name' | 'profileImageUrl'>;
 export type UserCreateRequest = components['schemas']['UserCreateRequest'];
 export type UserUpdateRequest = components['schemas']['UserUpdateRequest'];
 export type UserRoleUpdateRequest = components['schemas']['UserRoleUpdateRequest'];

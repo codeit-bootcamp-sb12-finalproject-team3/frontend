@@ -13,6 +13,7 @@
 import apiClient from './client';
 import type {
   UserDto,
+  UserProfile,
   UserCreateRequest,
   UserUpdateRequest,
   UserRoleUpdateRequest,
@@ -29,8 +30,8 @@ import type {
  * @param userId - User ID to retrieve
  * @returns User information
  */
-export const getUserById = async (userId: string): Promise<UserDto> => {
-  const response = await apiClient.get<UserDto>(`/api/users/${userId}`);
+export const getUserById = async (userId: string): Promise<UserProfile> => {
+  const response = await apiClient.get<UserProfile>(`/api/users/${userId}`);
   return response.data;
 };
 
@@ -75,7 +76,7 @@ export const updateUser = async (
   userId: string,
   data: UserUpdateRequest,
   image?: File,
-): Promise<UserDto> => {
+): Promise<UserProfile> => {
   const formData = new FormData();
 
   // Append request data as JSON blob
@@ -89,7 +90,7 @@ export const updateUser = async (
     formData.append('image', image);
   }
 
-  const response = await apiClient.patch<UserDto>(`/api/users/${userId}`, formData, {
+  const response = await apiClient.patch<UserProfile>(`/api/users/${userId}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
