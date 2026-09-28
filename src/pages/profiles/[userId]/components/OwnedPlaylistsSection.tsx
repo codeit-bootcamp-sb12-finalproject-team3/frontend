@@ -1,5 +1,5 @@
 import PlaylistCard from "@/pages/playlists/components/PlaylistCard";
-import usePlaylistStore from "@/lib/stores/usePlaylistStore";
+import useOwnedPlaylistStore from "@/lib/stores/useOwnedPlaylistStore";
 import {useCallback, useEffect, useRef} from "react";
 import PlaylistCardSkeleton from "./PlaylistCardSkeleton";
 
@@ -13,7 +13,7 @@ export default function OwnedPlaylistsSection({userId}: {userId: string}) {
     count: ownedPlaylistsCount,
     hasNext: hasNextOwnedPlaylists,
     fetchMore: fetchMoreOwnedPlaylists,
-  } = usePlaylistStore();
+  } = useOwnedPlaylistStore();
 
   const ownedPlaylistsTotal = ownedPlaylistsCount();
 
