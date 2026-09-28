@@ -1,4 +1,4 @@
-import type { DirectMessageDto } from '@/lib/types';
+import type { DirectMessageDto, UserSummary } from '@/lib/types';
 import icProfileDefault from '@/assets/ic_profile_default.svg';
 import {useNavigate} from "react-router-dom";
 
@@ -6,9 +6,10 @@ interface MessageBubbleProps {
   message: DirectMessageDto;
   isMine: boolean;
   showProfile?: boolean;
+  peer?: UserSummary;
 }
 
-export default function MessageBubble({ message, isMine, showProfile = true }: MessageBubbleProps) {
+export default function MessageBubble({ message, isMine, showProfile = true, peer }: MessageBubbleProps) {
   const navigate = useNavigate();
   // 시간 포맷팅 (예: "오전 1:00")
   const formatTime = (dateString: string) => {
@@ -40,10 +41,10 @@ export default function MessageBubble({ message, isMine, showProfile = true }: M
   return (
     <div className="flex items-end gap-2.5 px-[30px]">
       {showProfile && (
-        <div className="w-6 h-6 rounded-full flex-shrink-0 overflow-hidden cursor-pointer" onClick={() => navigate(`/profiles/${message.sender?.userId}`)}>
+        <div className="w-6 h-6 rounded-full flex-shrink-0 overflow-hidden cursor-pointer" onClick={() => peer && navigate(`/profiles/${peer.userId}`)}>
           <img
-            src={message.sender?.profileImageUrl || icProfileDefault}
-            alt={`${message.sender?.name || 'User'} profile`}
+            src={peer?.profileImageUrl || icProfileDefault}
+            alt={`${peer?.name || 'User'} profile`}
             className="w-full h-full object-cover"
           />
         </div>
