@@ -35,11 +35,14 @@ import WatchPartyRoomPage from '@/pages/watch-parties/[partyId]/page';
 import NotFoundPage from '@/pages/not-found/page';
 import ProfileRoutePage from "@/pages/profiles/page.tsx";
 
+import OAuthCallbackPage from "@/pages/oauth/callback/page.tsx";
+
 const router = createHashRouter(
   createRoutesFromElements(
       <Route element={<RootLayout />}>
         {/* Public Auth Routes */}
         <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/oauth/callback" element={<OAuthCallbackPage/>} />
         <Route path="/sign-up" element={<SignUpPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 

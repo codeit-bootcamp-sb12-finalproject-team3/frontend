@@ -51,6 +51,21 @@ export const signIn = async (credentials: SignInRequest): Promise<JwtDto> => {
 };
 
 /**
+ * Exchange OAuth2 login code for JWT.
+ * POST /api/auth/oauth/exchange
+ */
+export const exchangeOAuth2Code = async (code: string): Promise<JwtDto> => {
+  await getCsrfToken();
+
+  const response = await apiClient.post<JwtDto>('/api/auth/oauth/exchange', {
+    code,
+  });
+
+  csrfToken = null;
+  return response.data;
+};
+
+/**
  * Sign out (로그아웃)
  * POST /api/auth/logout
  *
