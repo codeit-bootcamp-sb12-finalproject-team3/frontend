@@ -16,10 +16,14 @@ interface ChangePasswordFormData {
   passwordConfirmation: string;
 }
 
-export default function ChangePasswordForm() {
+interface ChangePasswordFormProps {
+  tempPassword: string;
+}
+
+export default function ChangePasswordForm({ tempPassword }: ChangePasswordFormProps) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const { data: authentication, signOut } = useAuthStore();
+  const { data: authentication, clear } = useAuthStore();
 
   const {
     register,
@@ -30,10 +34,11 @@ export default function ChangePasswordForm() {
 
   const password = watch('password');
 
+
   const onSubmit = async (data: ChangePasswordFormData) => {
     if (!authentication) {
       toast.error('인증 정보가 없습니다. 다시 시도해주세요.');
-      navigate('/sign-in');
+      navigate('/sign-in', { replace: true });
       return;
     }
 
@@ -41,22 +46,24 @@ export default function ChangePasswordForm() {
 
     try {
       const request: ChangePasswordRequest = {
-        password: data.password,
+        currentPassword: tempPassword,
+        newPassword: data.password,
+        newPasswordConfirm: data.passwordConfirmation,
       };
 
-      await updateUserPassword(authentication.userDto.id, request);
-
-      toast.success('비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
-
-      // Logout and redirect to sign-in
-      await signOut();
-      navigate('/sign-in');
+      await updateUserPassword(request);
     } catch (error) {
-      console.error("Fail to change password:", error);
+      console.error('Fail to change password:', error);
       toast.error('비밀번호 변경에 실패했습니다. 다시 시도해주세요.');
-    } finally {
       setIsLoading(false);
+      return;
     }
+
+    clear();
+    toast.success('비밀번호가 변경되었습니다.\n새 비밀번호로 로그인해주세요.', {
+      position: 'top-center',
+      style: {whiteSpace: 'pre-line'}});
+    navigate('/sign-in', { replace: true });
   };
 
   return (
@@ -80,7 +87,6 @@ export default function ChangePasswordForm() {
               <Input
                 id="password"
                 type="password"
-                placeholder="●●●●●●●●"
                 className={cn(
                   'h-[54px] rounded-xl border-[1.5px]',
                   errors.password ? 'border-[#c93c3f]' : 'border-gray-800',
@@ -112,7 +118,6 @@ export default function ChangePasswordForm() {
               <Input
                 id="passwordConfirmation"
                 type="password"
-                placeholder="●●●●●●●●"
                 className={cn(
                   'h-[54px] rounded-xl border-[1.5px]',
                   errors.passwordConfirmation ? 'border-[#c93c3f]' : 'border-gray-800',

@@ -34,6 +34,10 @@ export async function execute<T>(
 
   // 중복 요청 방지
   if (get()[loadingKey] && options?.ignoreLoading !== true) {
+    if (shouldThrow) {
+      throw new Error('다른 인증 요청이 처리 중입니다. 잠시 후 다시 시도해주세요.');
+    }
+
     console.warn(`로딩 중이므로 요청이 무시되었습니다.`);
     return undefined;
   }
