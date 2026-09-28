@@ -58,7 +58,11 @@ export default function PlaylistsPage() {
 
       {/* Search and Sort Bar */}
       <div className="flex items-center justify-between gap-4">
-        <SearchBar onSearch={handleSearch} placeholder="플레이리스트 또는 콘텐츠 검색" />
+        <SearchBar
+            onSearch={handleSearch}
+            placeholder="플레이리스트 또는 콘텐츠 검색"
+            maxLength={100}
+        />
 
         <div className="flex items-center gap-2.5">
           <Button

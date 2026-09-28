@@ -96,7 +96,15 @@ export default function ChangePasswordForm({ tempPassword }: ChangePasswordFormP
                   required: '비밀번호를 입력해주세요',
                   minLength: {
                     value: 8,
-                    message: '비밀번호는 최소 8자 이상이어야 합니다',
+                    message: '비밀번호는 8자 이상 64자 이하여야 합니다.',
+                  },
+                  maxLength: {
+                    value: 64,
+                    message: '비밀번호는 8자 이상 64자 이하여야 합니다.',
+                  },
+                  pattern: {
+                    value: /^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[^\p{L}\p{N}\s]).*$/u,
+                    message: '비밀번호에는 영문, 숫자, 특수문자가 각각 하나 이상 포함되어야 합니다.',
                   },
                 })}
                 disabled={isLoading}
