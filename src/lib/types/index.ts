@@ -162,7 +162,9 @@ export type FindContentsParams = ContentSearchParams;
 export type FindPlaylistsParams = PlaylistSearchParams;
 
 // Review query params
-export type FindReviewsParams = operations['findReviews']['parameters']['query'];
+export type FindReviewsParams = operations['findReviews']['parameters']['query'] & {
+  userIdEqual?: string;
+};
 
 // Conversation & DM query params
 export type FindConversationsParams = operations['findConversations']['parameters']['query'];

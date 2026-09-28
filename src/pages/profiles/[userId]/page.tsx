@@ -5,6 +5,7 @@ import SubscribedPlaylistSection
   from "@/pages/profiles/[userId]/components/SubscribedPlaylistSection.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import LikedContentsSection from "./components/LikedContentsSection";
+import MyReviewsSection from "./components/MyReviewsSection";
 import useAuthStore from "@/lib/stores/useAuthStore";
 
 
@@ -29,7 +30,12 @@ export default function ProfilePage() {
         <UserProfileSection userId={userId}/>
         <OwnedPlaylistsSection userId={userId}/>
         <SubscribedPlaylistSection userId={userId}/>
-        {myUserId === userId && <LikedContentsSection userId={myUserId}/> }
+        {myUserId === userId && (
+          <>
+            <LikedContentsSection userId={myUserId}/>
+            <MyReviewsSection userId={myUserId}/>
+          </>
+        )}
       </div>
     </div>
   );
