@@ -297,6 +297,7 @@ export interface ContentSearchParams {
   genreIdEqual?: string;
   sportTypeEqual?: string;
   likedByMe?: boolean;
+  likedByUserIdEqual?: string;
   sortBy?: ContentSort;
   cursor?: string;
   idAfter?: string;

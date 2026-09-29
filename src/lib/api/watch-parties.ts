@@ -4,6 +4,7 @@ import type {
   CursorPageWatchPartyResponse,
   WatchPartyResponse,
   WatchPartySearchParams,
+  WatchPartySummaryResponse,
 } from '@/lib/types';
 
 export const getWatchParties = async (
@@ -12,6 +13,12 @@ export const getWatchParties = async (
   const response = await apiClient.get<CursorPageWatchPartyResponse>('/api/watch-parties', {
     params,
   });
+  return response.data;
+};
+
+/** GET /api/watch-parties/scheduled-by-me: 내 시작 알림 예약 목록 */
+export const getScheduledWatchPartiesByMe = async (): Promise<WatchPartySummaryResponse[]> => {
+  const response = await apiClient.get<WatchPartySummaryResponse[]>('/api/watch-parties/scheduled-by-me');
   return response.data;
 };
 

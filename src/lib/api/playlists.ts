@@ -9,6 +9,7 @@
 
 import { isAxiosError } from 'axios';
 import apiClient from './client';
+import type { AiPlaylistCreateRequest } from '@/lib/types/playlists';
 import type {
   PlaylistCreateRequest,
   PlaylistDetail,
@@ -28,6 +29,20 @@ export const getPlaylists = async (
   params: PlaylistSearchParams,
 ): Promise<CursorResponsePlaylistSummary> => {
   const response = await apiClient.get<CursorResponsePlaylistSummary>('/api/playlists', { params });
+  return response.data;
+};
+
+/** System AI account-owned playlists, filtered by backend configuration. */
+export const getAiPlaylists = async (params: PlaylistSearchParams): Promise<CursorResponsePlaylistSummary> => {
+  const query = {
+    keywordLike: params.keywordLike,
+    cursor: params.cursor,
+    idAfter: params.idAfter,
+    limit: params.limit,
+    sortBy: params.sortBy,
+    sortDirection: params.sortDirection,
+  };
+  const response = await apiClient.get<CursorResponsePlaylistSummary>('/api/playlists/ai', { params: query });
   return response.data;
 };
 
@@ -54,6 +69,11 @@ export const getPlaylist = async (playlistId: string): Promise<PlaylistDetail> =
  */
 export const createPlaylist = async (data: PlaylistCreateRequest): Promise<PlaylistDetail> => {
   const response = await apiClient.post<PlaylistDetail>('/api/playlists', data);
+  return response.data;
+};
+
+export const createAiPlaylist = async (data: AiPlaylistCreateRequest): Promise<PlaylistDetail> => {
+  const response = await apiClient.post<PlaylistDetail>('/api/playlists/ai', data);
   return response.data;
 };
 

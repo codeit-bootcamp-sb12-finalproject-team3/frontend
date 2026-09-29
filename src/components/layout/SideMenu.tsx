@@ -83,7 +83,7 @@ export default function SideMenu() {
         <NavItem
           to="/profiles"
           icon={icProfileMenu}
-          label="프로필"
+          label="마이페이지"
           collapsed={sideMenuCollapsed}
         />
         <NavItem

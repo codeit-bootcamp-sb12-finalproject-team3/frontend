@@ -121,8 +121,14 @@ export default function UserProfileSection({userId}: {userId: string}) {
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('이미지 파일만 업로드할 수 있습니다');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('JPG, PNG, WebP 이미지만 업로드할 수 있습니다');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('프로필 이미지는 5MB 이하여야 합니다');
+      e.target.value = '';
       return;
     }
 
@@ -142,8 +148,8 @@ export default function UserProfileSection({userId}: {userId: string}) {
     if (!profile || !userId) return;
 
     // Validate name
-    if (editName.trim().length < 2) {
-      toast.error('이름은 최소 2자 이상이어야 합니다');
+    if (editName.trim().length === 0 || editName.trim().length > 50) {
+      toast.error('이름은 1~50자여야 합니다');
       return;
     }
 
@@ -162,7 +168,7 @@ export default function UserProfileSection({userId}: {userId: string}) {
       // Sync auth store if editing own profile
       if (isOwnProfile && jwt) {
         useAuthStore.getState().update({
-          userDto: updatedUser,
+          userDto: { ...jwt.userDto, ...updatedUser },
         });
       }
 
@@ -313,7 +319,7 @@ export default function UserProfileSection({userId}: {userId: string}) {
                     <div className="flex items-center gap-[10px]">
                       <Button
                           onClick={handleSaveProfile}
-                          disabled={isUpdating || editName.trim().length < 2}
+                          disabled={isUpdating || editName.trim().length === 0 || editName.trim().length > 50}
                           className="h-[34px] px-3 bg-pink-500 hover:bg-pink-600 disabled:bg-gray-800 disabled:text-gray-600"
                       >
                       <span className="text-body3-b text-white">
