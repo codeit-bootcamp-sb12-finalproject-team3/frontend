@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import usePlaylistStore from '@/lib/stores/usePlaylistStore';
 import useAiPlaylistStore from '@/lib/stores/useAiPlaylistStore';
+import { getPlaylists } from '@/lib/api/playlists';
+import type { PlaylistSummary } from '@/lib/types';
 import PlaylistSortDropdown, { type PlaylistTab, type SortOption } from './components/PlaylistSortDropdown';
 import PlaylistGrid from './components/PlaylistGrid';
 import CreatePlaylistDialog from './components/CreatePlaylistDialog';
@@ -20,6 +22,9 @@ export default function PlaylistsPage() {
   const [activeTab, setActiveTab] = useState<PlaylistTab>('all');
   const [sortValue, setSortValue] = useState('latest');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [popularPlaylists, setPopularPlaylists] = useState<PlaylistSummary[]>([]);
+  const [popularLoading, setPopularLoading] = useState(false);
+  const [popularError, setPopularError] = useState<string>();
 
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0,
@@ -35,6 +40,25 @@ export default function PlaylistsPage() {
       void aiList.fetch();
     }
   }, [activeTab, aiList.fetch]);
+
+  // Select the top 20 first. Reversing the display must never request the bottom 20.
+  useEffect(() => {
+    if (activeTab !== 'popular') return;
+    let cancelled = false;
+    setPopularLoading(true);
+    setPopularError(undefined);
+    void getPlaylists({ limit: 20, sortBy: 'weeklyPopularityScore', sortDirection: 'DESCENDING' })
+      .then((result) => {
+        if (!cancelled) setPopularPlaylists(result.data);
+      })
+      .catch(() => {
+        if (!cancelled) setPopularError('주간 인기 플레이리스트를 불러오지 못했습니다.');
+      })
+      .finally(() => {
+        if (!cancelled) setPopularLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [activeTab]);
 
   useEffect(() => {
     if (!inView) return;
@@ -118,7 +142,7 @@ export default function PlaylistsPage() {
             >
               + 플레이리스트 만들기
             </Button>
-            <PlaylistSortDropdown tab={activeTab} value={sortValue} onValueChange={handleSortChange} disabled={activeTab === 'popular'} />
+            <PlaylistSortDropdown tab={activeTab} value={sortValue} onValueChange={handleSortChange}  />
           </div>
         </div>
 
@@ -133,10 +157,11 @@ export default function PlaylistsPage() {
             {!aiList.loading && aiList.hasNext() && <div ref={sentinelRef} className="h-10" />}
           </>
         ) : (
-          <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-2xl border border-gray-700 bg-gray-800/30 text-center">
-            <p className="text-body1-m text-white">주간 인기 플레이리스트</p>
-            <p className="text-body3-m text-gray-400">목록 조회 연결은 다음 단계에서 진행합니다.</p>
-          </div>
+          <PlaylistGrid
+            playlists={sortValue === 'popular-asc' ? [...popularPlaylists].reverse() : popularPlaylists}
+            loading={popularLoading}
+            error={popularError}
+          />
         )}
       </div>
 
