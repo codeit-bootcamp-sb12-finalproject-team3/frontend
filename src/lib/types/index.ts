@@ -53,6 +53,8 @@ export type {
 
 // User types
 export type UserDto = components['schemas']['UserDto'];
+// GET/PATCH /api/users/{userId} returns only these public profile fields.
+export type UserProfile = Pick<UserDto, 'id' | 'name' | 'profileImageUrl'>;
 export type UserCreateRequest = components['schemas']['UserCreateRequest'];
 export type UserUpdateRequest = components['schemas']['UserUpdateRequest'];
 export type UserRoleUpdateRequest = components['schemas']['UserRoleUpdateRequest'];
@@ -160,7 +162,9 @@ export type FindContentsParams = ContentSearchParams;
 export type FindPlaylistsParams = PlaylistSearchParams;
 
 // Review query params
-export type FindReviewsParams = operations['findReviews']['parameters']['query'];
+export type FindReviewsParams = operations['findReviews']['parameters']['query'] & {
+  userIdEqual?: string;
+};
 
 // Conversation & DM query params
 export type FindConversationsParams = operations['findConversations']['parameters']['query'];
