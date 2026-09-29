@@ -4,6 +4,7 @@ import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useUIStore from '@/lib/stores/useUIStore';
 
 import icTv from '@/assets/ic_tv.svg';
+import icClapperboard from '@/assets/ic_clapperboard.svg';
 import icPlaylist from '@/assets/ic_playlist.svg';
 import icProfileMenu from '@/assets/ic_profile_menu.svg';
 import icPlane from '@/assets/ic_plane.svg';
@@ -64,7 +65,7 @@ export default function SideMenu() {
         />
         <NavItem
           to="/contents"
-          icon={icTv}
+          icon={icClapperboard}
           label="콘텐츠 둘러보기"
           collapsed={sideMenuCollapsed}
         />
