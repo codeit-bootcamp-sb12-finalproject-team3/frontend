@@ -32,6 +32,10 @@ export interface PlaylistCreateRequest {
   contentIds: string[];
 }
 
+export interface AiPlaylistCreateRequest {
+  theme: string;
+}
+
 export type PlaylistSortBy = 'createdAt' | 'weeklyPopularityScore';
 
 export interface PlaylistSearchParams {

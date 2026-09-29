@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { getSelectableContents } from '@/lib/api/contents';
-import { createPlaylist, getPlaylistErrorCode } from '@/lib/api/playlists';
+import { createAiPlaylist, createPlaylist, getPlaylistErrorCode } from '@/lib/api/playlists';
 import type {
   CursorResponseSelectableContent,
   SelectableContent,
@@ -42,6 +42,8 @@ export default function CreatePlaylistDialog({
 }: CreatePlaylistDialogProps) {
   const navigate = useNavigate();
   const requestSequence = useRef(0);
+  const [mode, setMode] = useState<'manual' | 'ai'>('manual');
+  const [theme, setTheme] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -61,7 +63,7 @@ export default function CreatePlaylistDialog({
   }, [searchInput]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || mode !== 'manual') return;
 
     const sequence = ++requestSequence.current;
     setLoading(true);
@@ -88,7 +90,7 @@ export default function CreatePlaylistDialog({
       .finally(() => {
         if (requestSequence.current === sequence) setLoading(false);
       });
-  }, [open, searchKeyword]);
+  }, [open, mode, searchKeyword]);
 
   const selected = useMemo(() => Array.from(selectedContents.values()), [selectedContents]);
   const hasNext = Boolean(pages.movie?.hasNext || pages.tvSeries?.hasNext);
@@ -111,6 +113,8 @@ export default function CreatePlaylistDialog({
 
   const reset = () => {
     requestSequence.current += 1;
+    setMode('manual');
+    setTheme('');
     setTitle('');
     setDescription('');
     setSearchInput('');
@@ -181,6 +185,25 @@ export default function CreatePlaylistDialog({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (creating) return;
+    if (mode === 'ai') {
+      const trimmedTheme = theme.trim();
+      if (!trimmedTheme || trimmedTheme.length > 200) return;
+      setCreating(true);
+      try {
+        const playlist = await createAiPlaylist({ theme: trimmedTheme });
+        toast.success('AI 플레이리스트를 만들었습니다.');
+        setCreating(false);
+        handleOpenChange(false);
+        navigate(`/playlists/${playlist.id}`);
+      } catch (error) {
+        const code = getPlaylistErrorCode(error);
+        toast.error(code === 'VALIDATION_ERROR' ? '테마를 다시 확인해주세요.' : 'AI 플레이리스트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      } finally {
+        setCreating(false);
+      }
+      return;
+    }
     if (!canCreate) return;
 
     const contentIds = Array.from(selectedContents.keys());
@@ -217,13 +240,13 @@ export default function CreatePlaylistDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         hideCloseButton
-        className="max-w-[760px] max-h-[90vh] overflow-hidden bg-gray-800/90 backdrop-blur-[25px] border border-gray-700 rounded-3xl p-0"
+        className="max-w-[760px] max-h-[90vh] overflow-hidden bg-gray-800/50 backdrop-blur-[25px] border border-gray-800 rounded-3xl p-0"
       >
         <form onSubmit={handleSubmit} className="flex max-h-[90vh] flex-col">
           <div className="flex items-start justify-between border-b border-gray-700 px-8 py-6">
             <div className="space-y-2">
-              <DialogTitle className="text-title1-b">플레이리스트 만들기</DialogTitle>
-              <DialogDescription>제목과 설명을 입력하고 콘텐츠를 4개 이상 선택해주세요.</DialogDescription>
+              <DialogTitle className="text-title1-sb text-gray-50">플레이리스트 만들기</DialogTitle>
+              <DialogDescription className="text-body3-m text-gray-400">{mode === 'manual' ? '제목과 설명을 입력하고 콘텐츠를 4개 이상 선택해주세요.' : '원하는 분위기나 주제를 입력하면 AI가 플레이리스트를 구성합니다.'}</DialogDescription>
             </div>
             <button
               type="button"
@@ -236,26 +259,37 @@ export default function CreatePlaylistDialog({
             </button>
           </div>
 
+          <div className="flex gap-2 border-b border-gray-700 px-8 pt-4" role="tablist" aria-label="플레이리스트 생성 방식">
+            <button type="button" role="tab" aria-selected={mode === 'manual'} disabled={creating} onClick={() => setMode('manual')} className={`border-b-2 px-4 py-3 text-body3-sb ${mode === 'manual' ? 'border-pink-500 text-gray-50' : 'border-transparent text-gray-400 hover:text-gray-50'}`}>직접 만들기</button>
+            <button type="button" role="tab" aria-selected={mode === 'ai'} disabled={creating} onClick={() => setMode('ai')} className={`border-b-2 px-4 py-3 text-body3-sb ${mode === 'ai' ? 'border-pink-500 text-gray-50' : 'border-transparent text-gray-400 hover:text-gray-50'}`}>AI로 만들기</button>
+          </div>
+          {mode === 'ai' ? (
+            <div className="space-y-3 overflow-y-auto px-8 py-8">
+              <label htmlFor="ai-playlist-theme" className="block text-body2-sb text-gray-300">플레이리스트 테마 <span className="text-pink-500">*</span></label>
+              <textarea id="ai-playlist-theme" value={theme} onChange={(event) => setTheme(event.target.value)} maxLength={200} disabled={creating} rows={4} placeholder="예: 비 오는 날 편안하게 볼 수 있는 영화와 드라마" className="w-full resize-none rounded-md border border-gray-700 bg-gray-700 px-3 py-2 text-body2-m text-gray-50 outline-none placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-pink-500" />
+              <p className="text-right text-caption1-m text-gray-400">{theme.length}/200</p>
+            </div>
+          ) : (
           <div className="space-y-6 overflow-y-auto px-8 py-6">
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <label className="flex flex-col gap-2 text-body3-sb text-gray-200">
-                제목
+              <label className="flex flex-col gap-2 text-body2-sb text-gray-300">
+                제목 <span className="text-pink-500">*</span>
                 <input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   maxLength={100}
                   placeholder="플레이리스트 제목"
-                  className="h-11 rounded-xl border border-gray-700 bg-gray-900/60 px-4 text-body2-m text-white outline-none focus:border-pink-600"
+                  className="h-11 rounded-md border border-gray-700 bg-gray-700 px-3 text-body2-m text-gray-50 outline-none placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-pink-500"
                 />
                 <span className="text-right text-caption1-m text-gray-400">{title.length}/100</span>
               </label>
-              <label className="flex flex-col gap-2 text-body3-sb text-gray-200">
-                설명
+              <label className="flex flex-col gap-2 text-body2-sb text-gray-300">
+                설명 <span className="text-pink-500">*</span>
                 <textarea
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   placeholder="플레이리스트 설명"
-                  className="h-[76px] resize-none rounded-xl border border-gray-700 bg-gray-900/60 px-4 py-3 text-body2-m text-white outline-none focus:border-pink-600"
+                  className="h-[76px] resize-none rounded-md border border-gray-700 bg-gray-700 px-3 py-2 text-body2-m text-gray-50 outline-none placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-pink-500"
                 />
               </label>
             </div>
@@ -271,12 +305,12 @@ export default function CreatePlaylistDialog({
                   onChange={(event) => setSearchInput(event.target.value)}
                   maxLength={100}
                   placeholder="콘텐츠 검색"
-                  className="h-11 w-full rounded-full border border-gray-700 bg-gray-900/60 pl-4 pr-11 text-body3-m text-white outline-none placeholder:text-gray-400 focus:border-pink-600"
+                  className="h-11 w-full rounded-md border border-gray-700 bg-gray-700 pl-3 pr-11 text-body2-m text-gray-50 outline-none placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-pink-500"
                 />
                 <Search className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               </div>
 
-              <div className="max-h-[260px] overflow-y-auto rounded-xl border border-gray-700 bg-gray-900/30 p-2">
+              <div className="max-h-[260px] overflow-y-auto rounded-md border border-gray-700 bg-gray-800 p-2">
                 {loading ? (
                   <div className="flex h-28 items-center justify-center text-body3-m text-gray-400">
                     콘텐츠를 불러오는 중입니다.
@@ -293,14 +327,14 @@ export default function CreatePlaylistDialog({
                         <label
                           key={content.id}
                           className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                            checked ? 'bg-pink-600/15' : 'hover:bg-gray-700/60'
+                            checked ? 'bg-pink-500/20' : 'hover:bg-gray-700/60'
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleContent(content)}
-                            className="h-4 w-4 accent-pink-600"
+                            className="h-4 w-4 accent-pink-500"
                           />
                           <img
                             src={content.thumbnailUrl || '/placeholder-movie.png'}
@@ -363,24 +397,25 @@ export default function CreatePlaylistDialog({
             </section>
           </div>
 
+          )}
           <div className="flex items-center justify-between gap-4 border-t border-gray-700 px-8 py-5">
-            <p className="text-caption1-m text-gray-400">{validationMessage}</p>
+            <p className="text-caption1-m text-gray-400">{mode === 'manual' ? validationMessage : !theme.trim() ? '테마를 입력해주세요.' : null}</p>
             <div className="flex gap-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => handleOpenChange(false)}
                 disabled={creating}
-                className="border-gray-600 bg-transparent text-gray-200 hover:bg-gray-700"
+                className="border-gray-700 bg-transparent text-gray-300 hover:bg-gray-700"
               >
                 취소
               </Button>
               <Button
                 type="submit"
-                disabled={!canCreate}
-                className="bg-pink-600 text-white hover:bg-pink-700"
+                disabled={mode === 'manual' ? !canCreate : creating || !theme.trim() || theme.trim().length > 200}
+                className="bg-pink-500 text-white hover:bg-pink-600"
               >
-                {creating ? '만드는 중...' : '만들기'}
+                {creating ? '만드는 중...' : mode === 'ai' ? 'AI로 만들기' : '만들기'}
               </Button>
             </div>
           </div>

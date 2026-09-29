@@ -9,6 +9,7 @@
 
 import { isAxiosError } from 'axios';
 import apiClient from './client';
+import type { AiPlaylistCreateRequest } from '@/lib/types/playlists';
 import type {
   PlaylistCreateRequest,
   PlaylistDetail,
@@ -68,6 +69,11 @@ export const getPlaylist = async (playlistId: string): Promise<PlaylistDetail> =
  */
 export const createPlaylist = async (data: PlaylistCreateRequest): Promise<PlaylistDetail> => {
   const response = await apiClient.post<PlaylistDetail>('/api/playlists', data);
+  return response.data;
+};
+
+export const createAiPlaylist = async (data: AiPlaylistCreateRequest): Promise<PlaylistDetail> => {
+  const response = await apiClient.post<PlaylistDetail>('/api/playlists/ai', data);
   return response.data;
 };
 
