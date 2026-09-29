@@ -40,23 +40,6 @@ export const getContentAutocomplete = async (
   return response.data;
 };
 
-const CONTENT_TYPE_QUERY_VALUES = {
-  movie: 'MOVIE',
-  tvSeries: 'TV_SERIES',
-  sport: 'SPORT',
-} as const;
-
-const CONTENT_SORT_QUERY_VALUES = {
-  latest: 'LATEST',
-  rating: 'RATING',
-} as const;
-
-const toContentQueryParams = (params: ContentSearchParams) => ({
-  ...params,
-  typeEqual: params.typeEqual ? CONTENT_TYPE_QUERY_VALUES[params.typeEqual] : undefined,
-  sortBy: params.sortBy ? CONTENT_SORT_QUERY_VALUES[params.sortBy] : undefined,
-});
-
 /**
  * Get contents list with cursor pagination
  * GET /api/contents
@@ -68,7 +51,7 @@ export const getContents = async (
   params: ContentSearchParams,
 ): Promise<CursorResponseContentSummary> => {
   const response = await apiClient.get<CursorResponseContentSummary>('/api/contents', {
-    params: toContentQueryParams(params),
+    params,
   });
   return response.data;
 };
@@ -77,7 +60,7 @@ export const getContentGenres = async (
   type: 'movie' | 'tvSeries',
 ): Promise<ContentGenre[]> => {
   const response = await apiClient.get<ContentGenre[]>('/api/contents/genres', {
-    params: { type: CONTENT_TYPE_QUERY_VALUES[type] },
+    params: { type },
   });
   return response.data;
 };
