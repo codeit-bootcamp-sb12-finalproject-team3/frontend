@@ -10,7 +10,7 @@ interface ContentGridProps {
 export default function ContentGrid({ contents, loading, error }: ContentGridProps) {
   if (loading && contents.length === 0) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-6 sm:gap-x-5 sm:gap-y-8 md:gap-x-[30px] md:gap-y-[40px]">
+      <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {Array.from({ length: 30 }).map((_, index) => (
           <ContentCardSkeleton key={index} />
         ))}
@@ -35,7 +35,7 @@ export default function ContentGrid({ contents, loading, error }: ContentGridPro
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-6 sm:gap-x-5 sm:gap-y-8 md:gap-x-[30px] md:gap-y-[40px]">
+    <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
       {contents.map((content) => (
         <ContentCard key={content.id} content={content} />
       ))}
@@ -45,12 +45,12 @@ export default function ContentGrid({ contents, loading, error }: ContentGridPro
 
 function ContentCardSkeleton() {
   return (
-    <div className="flex flex-col gap-3 animate-pulse">
+    <div className="animate-pulse overflow-hidden rounded-[22px] border border-white/[0.07] bg-gray-950/80">
       {/* Thumbnail Skeleton */}
-      <div className="w-full aspect-[260/390] rounded-2xl bg-gray-800" />
+      <div className="aspect-[2/3] w-full bg-gray-800" />
 
       {/* Info Skeleton */}
-      <div className="flex flex-col gap-1.5 pt-1.5">
+      <div className="flex min-h-[158px] flex-col gap-3 p-4">
         <div className="h-5 bg-gray-800 rounded w-3/4" />
         <div className="h-4 bg-gray-800 rounded w-full" />
         <div className="h-4 bg-gray-800 rounded w-5/6" />

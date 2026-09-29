@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import useContentStore from '@/lib/stores/useContentStore';
 import type { ContentTypeFilter } from '@/lib/types';
@@ -8,9 +8,10 @@ import SortDropdown, { type SortOption } from './components/SortDropdown';
 import ContentGrid from './components/ContentGrid';
 
 export default function ContentsPage() {
-  const { data, loading, error, fetch, fetchMore, hasNext, updateParams } = useContentStore();
-  const [selectedType, setSelectedType] = useState<ContentTypeFilter | 'ALL'>('ALL');
-  const [sortValue, setSortValue] = useState('latest');
+  const { data, params, cursorState, loading, error, scrollPosition, shouldRestoreScroll, fetch, fetchMore, hasNext, updateParams, markScrollRestored } = useContentStore();
+  const [selectedType, setSelectedType] = useState<ContentTypeFilter | 'ALL'>(() => useContentStore.getState().params.typeEqual ?? 'ALL');
+  const [sortValue, setSortValue] = useState(() => useContentStore.getState().params.sortBy ?? 'latest');
+  const initialLoadStarted = useRef(false);
 
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0,
@@ -18,8 +19,25 @@ export default function ContentsPage() {
   });
 
   useEffect(() => {
-    void fetch();
-  }, [fetch]);
+    if (initialLoadStarted.current) return;
+    initialLoadStarted.current = true;
+    if (!shouldRestoreScroll || data.length === 0) void fetch();
+  }, [data.length, fetch, shouldRestoreScroll]);
+
+  useLayoutEffect(() => {
+    if (!shouldRestoreScroll || data.length === 0 || loading) return;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollPosition, behavior: 'auto' });
+        markScrollRestored();
+      });
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [data.length, loading, markScrollRestored, scrollPosition, shouldRestoreScroll]);
 
   // Infinite scroll
   useEffect(() => {
@@ -60,19 +78,25 @@ export default function ContentsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-10 px-[70px] py-10">
+    <div className="flex flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10 xl:px-[54px] xl:py-10">
       {/* Page Title */}
       <h1 className="text-header1-b text-white">콘텐츠 같이 보기</h1>
 
       {/* Filter & Search Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <FilterTabs selectedType={selectedType} onTypeChange={handleTypeChange} />
 
         <div className="flex items-center gap-2.5">
-          <SearchBar onSearch={handleSearch} />
+          <SearchBar onSearch={handleSearch} initialValue={useContentStore.getState().params.keywordLike ?? ''} autocomplete="content" />
           <SortDropdown value={sortValue} onValueChange={handleSortChange} />
         </div>
       </div>
+
+      {params.keywordLike && !error && (
+        <p className="-mt-4 text-body3-m text-gray-400" aria-live="polite">
+          <strong className="text-gray-100">‘{params.keywordLike}’</strong> 검색 결과 {cursorState.totalCount.toLocaleString()}개
+        </p>
+      )}
 
       {/* Content Grid */}
       <ContentGrid contents={data} loading={loading} error={error} />
@@ -87,7 +111,10 @@ export default function ContentsPage() {
         </div>
       )}
       {loading && data.length > 0 && (
-          <div className="w-8 h-8 border-4 border-gray-700 border-t-pink-500 rounded-full animate-spin" />
+        <div className="flex h-12 items-center justify-center" role="status" aria-label="콘텐츠 추가 조회 중">
+          <div className="size-8 animate-spin rounded-full border-4 border-gray-700 border-t-pink-500" />
+          <span className="sr-only">콘텐츠를 더 불러오는 중입니다.</span>
+        </div>
       )}
     </div>
   );

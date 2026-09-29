@@ -15,10 +15,27 @@ import type {
 export type {
   ContentCreateRequest,
   ContentCreateResponse,
+  ContentResponse,
+  ContentLikeResponse,
+  ContentCast,
+  ContentPlatformResponse,
+  ContentPlatformCatalogItem,
+  ContentPlatformCreateRequest,
+  ContentCastCreateRequest,
+  ContentUpdateRequest,
+  EpisodeResponse,
+  EpisodeCreateRequest,
+  EpisodeUpdateRequest,
+  ContentPlaylistResponse,
+  ContentWatchPartyResponse,
   ContentGenre,
   ContentSearchParams,
+  ContentSearchSuggestion,
+  ContentAutocompleteResponse,
   ContentSort,
   ContentSportType,
+  ContentSeriesSuggestion,
+  ContentSeriesSearchResponse,
   ContentSummaryResponse,
   ContentSummaryType,
   ContentTag,
@@ -69,7 +86,6 @@ export type ChangePasswordRequest = components['schemas']['ChangePasswordRequest
 
 // Content types
 export type ContentDto = components['schemas']['ContentDto'];
-export type ContentUpdateRequest = components['schemas']['ContentUpdateRequest'];
 export type ContentSummary = components['schemas']['ContentSummary'];
 export type ContentChatDto = {
   sender: UserSummary;

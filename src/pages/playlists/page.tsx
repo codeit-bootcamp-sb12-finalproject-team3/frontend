@@ -9,6 +9,8 @@ import PlaylistGrid from './components/PlaylistGrid';
 import CreatePlaylistDialog from './components/CreatePlaylistDialog';
 import { Button } from '@/components/ui/button';
 import SearchBar from '@/pages/contents/components/SearchBar';
+import { ArrowLeft } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const TABS: { value: PlaylistTab; label: string }[] = [
   { value: 'all', label: '전체' },
@@ -17,7 +19,7 @@ const TABS: { value: PlaylistTab; label: string }[] = [
 ];
 
 export default function PlaylistsPage() {
-  const { data, loading, error, fetch, fetchMore, hasNext, updateParams } = usePlaylistStore();
+  const { data, loading, error, fetchMore, hasNext, updateParams } = usePlaylistStore();
   const aiList = useAiPlaylistStore();
   const [activeTab, setActiveTab] = useState<PlaylistTab>('all');
   const [sortValue, setSortValue] = useState('latest');
@@ -26,6 +28,9 @@ export default function PlaylistsPage() {
   const [popularLoading, setPopularLoading] = useState(false);
   const [popularError, setPopularError] = useState<string>();
   const [popularKeyword, setPopularKeyword] = useState('');
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const contentIdEqual = searchParams.get('contentIdEqual') || undefined;
 
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0,
@@ -33,8 +38,13 @@ export default function PlaylistsPage() {
   });
 
   useEffect(() => {
-    void fetch();
-  }, [fetch]);
+    if (contentIdEqual) {
+      updateParams({ contentIdEqual, sortBy: 'weeklyPopularityScore', sortDirection: 'DESCENDING' });
+      setSortValue('popular');
+    } else {
+      updateParams({ contentIdEqual: undefined });
+    }
+  }, [contentIdEqual, updateParams]);
 
   useEffect(() => {
     if (activeTab === 'ai') {
@@ -113,7 +123,15 @@ export default function PlaylistsPage() {
 
   return (
     <div className="flex flex-col gap-10 px-[70px] py-10">
-      <h1 className="text-header1-b text-white">플레이리스트</h1>
+      {/* Page Title */}
+      <div>
+        {contentIdEqual && (
+          <button type="button" onClick={() => navigate(`/contents/${contentIdEqual}`)} className="mb-6 flex items-center gap-2 text-body3-sb text-gray-400 transition hover:text-white">
+            <ArrowLeft className="size-4" />상세페이지
+          </button>
+        )}
+        <h1 className="text-header1-b text-white">플레이리스트</h1>
+      </div>
 
       <div role="tablist" aria-label="플레이리스트 분류" className="flex items-center gap-8 border-b border-gray-700">
         {TABS.map((tab) => (

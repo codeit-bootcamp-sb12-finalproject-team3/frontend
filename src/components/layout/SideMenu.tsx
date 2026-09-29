@@ -65,7 +65,7 @@ export default function SideMenu() {
         <NavItem
           to="/contents"
           icon={icTv}
-          label="콘텐츠 같이 보기"
+          label="콘텐츠 둘러보기"
           collapsed={sideMenuCollapsed}
         />
         <NavItem
