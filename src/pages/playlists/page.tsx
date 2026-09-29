@@ -25,6 +25,7 @@ export default function PlaylistsPage() {
   const [popularPlaylists, setPopularPlaylists] = useState<PlaylistSummary[]>([]);
   const [popularLoading, setPopularLoading] = useState(false);
   const [popularError, setPopularError] = useState<string>();
+  const [popularKeyword, setPopularKeyword] = useState('');
 
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0,
@@ -70,6 +71,7 @@ export default function PlaylistsPage() {
     if (tab === activeTab) return;
     setActiveTab(tab);
     setSortValue(tab === 'popular' ? 'popular' : 'latest');
+    setPopularKeyword('');
     if (tab === 'ai') {
       aiList.clearData();
     }
@@ -100,7 +102,14 @@ export default function PlaylistsPage() {
   const handleSearch = useCallback((keyword: string) => {
     if (activeTab === 'all') updateParams({ keywordLike: keyword.trim() || undefined });
     if (activeTab === 'ai') aiList.updateParams({ keywordLike: keyword.trim() || undefined });
+    if (activeTab === 'popular') setPopularKeyword(keyword.trim().toLocaleLowerCase());
   }, [activeTab, updateParams, aiList.updateParams]);
+
+  const filteredPopularPlaylists = popularPlaylists.filter((playlist) => {
+    if (!popularKeyword) return true;
+    return [playlist.title, playlist.description, ...playlist.previewContents.map((content) => content.title)]
+      .some((value) => value?.toLocaleLowerCase().includes(popularKeyword));
+  });
 
   return (
     <div className="flex flex-col gap-10 px-[70px] py-10">
@@ -129,11 +138,7 @@ export default function PlaylistsPage() {
 
       <div role="tabpanel" id="playlist-tab-panel" aria-labelledby={`playlist-tab-${activeTab}`} className="flex flex-col gap-10">
         <div className="flex items-center justify-between gap-4">
-          {activeTab !== 'popular' ? (
-            <SearchBar key={activeTab} onSearch={handleSearch} placeholder="플레이리스트 또는 콘텐츠 검색" />
-          ) : (
-            <div className="w-[331px]" />
-          )}
+          <SearchBar key={activeTab} onSearch={handleSearch} placeholder={activeTab === 'popular' ? '인기 상위 20개 검색' : '플레이리스트 또는 콘텐츠 검색'} />
 
           <div className="flex items-center gap-2.5">
             <Button
@@ -158,7 +163,7 @@ export default function PlaylistsPage() {
           </>
         ) : (
           <PlaylistGrid
-            playlists={sortValue === 'popular-asc' ? [...popularPlaylists].reverse() : popularPlaylists}
+            playlists={sortValue === 'popular-asc' ? [...filteredPopularPlaylists].reverse() : filteredPopularPlaylists}
             loading={popularLoading}
             error={popularError}
           />
