@@ -1,38 +1,42 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import useContentStore from '@/lib/stores/useContentStore';
-import type { ContentType } from '@/lib/types';
+import type { ContentTypeFilter } from '@/lib/types';
 import FilterTabs from './components/FilterTabs';
 import SearchBar from './components/SearchBar';
 import SortDropdown, { type SortOption } from './components/SortDropdown';
 import ContentGrid from './components/ContentGrid';
 
 export default function ContentsPage() {
-  const { data, loading, fetchMore, hasNext, updateParams } = useContentStore();
-  const [selectedType, setSelectedType] = useState<ContentType | 'ALL'>('ALL');
-  const [sortValue, setSortValue] = useState('popular');
+  const { data, loading, error, fetch, fetchMore, hasNext, updateParams } = useContentStore();
+  const [selectedType, setSelectedType] = useState<ContentTypeFilter | 'ALL'>('ALL');
+  const [sortValue, setSortValue] = useState('latest');
 
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0,
     rootMargin: '100px',
   });
 
+  useEffect(() => {
+    void fetch();
+  }, [fetch]);
+
   // Infinite scroll
   useEffect(() => {
     if (inView && hasNext() && !loading) {
-      fetchMore();
+      void fetchMore();
     }
   }, [inView, hasNext, loading, fetchMore]);
 
   // Handle filter change
   const handleTypeChange = useCallback(
-    (type: ContentType | 'ALL') => {
+    (type: ContentTypeFilter | 'ALL') => {
       setSelectedType(type);
-      if (type === 'ALL') {
-        updateParams({ typeEqual: undefined });
-      } else {
-        updateParams({ typeEqual: type });
-      }
+      updateParams({
+        typeEqual: type === 'ALL' ? undefined : type,
+        genreIdEqual: undefined,
+        sportTypeEqual: undefined,
+      });
     },
     [updateParams]
   );
@@ -40,11 +44,8 @@ export default function ContentsPage() {
   // Handle search
   const handleSearch = useCallback(
     (query: string) => {
-      if (query.trim()) {
-        updateParams({ keywordLike: query });
-      } else {
-        updateParams({ keywordLike: undefined });
-      }
+      const keywordLike = query.trim().slice(0, 100);
+      updateParams({ keywordLike: keywordLike || undefined });
     },
     [updateParams]
   );
@@ -52,17 +53,8 @@ export default function ContentsPage() {
   // Handle sort change
   const handleSortChange = useCallback(
     (option: SortOption) => {
-      setSortValue(
-        option.sortBy === 'createdAt'
-          ? 'latest'
-          : option.sortBy === 'watcherCount'
-            ? 'popular'
-            : 'rating'
-      );
-      updateParams({
-        sortBy: option.sortBy,
-        sortDirection: option.sortDirection,
-      });
+      setSortValue(option.sortBy);
+      updateParams({ sortBy: option.sortBy });
     },
     [updateParams]
   );
@@ -83,7 +75,10 @@ export default function ContentsPage() {
       </div>
 
       {/* Content Grid */}
-      <ContentGrid contents={data} loading={loading} />
+      <ContentGrid contents={data} loading={loading} error={error} />
+      {error && data.length > 0 && (
+        <p className="text-center text-body3-m text-red-notification">{error}</p>
+      )}
 
       {/* Infinite Scroll Sentinel */}
       {!loading && hasNext() && (
@@ -91,7 +86,7 @@ export default function ContentsPage() {
 
         </div>
       )}
-      {loading && (
+      {loading && data.length > 0 && (
           <div className="w-8 h-8 border-4 border-gray-700 border-t-pink-500 rounded-full animate-spin" />
       )}
     </div>

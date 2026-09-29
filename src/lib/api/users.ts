@@ -115,19 +115,17 @@ export const updateUserRole = async (
 };
 
 /**
- * Update user password (비밀번호 변경)
- * PATCH /api/users/{userId}/password
+ * Update own password (비밀번호 변경)
+ * PATCH /api/users/me/password
  *
- * @param userId - User ID to update
  * @param data - Password change data
  *
  * Note: Users can only update their own password
  */
 export const updateUserPassword = async (
-  userId: string,
   data: ChangePasswordRequest,
 ): Promise<void> => {
-  await apiClient.patch(`/api/users/${userId}/password`, data);
+  await apiClient.patch('/api/users/me/password', data);
 };
 
 /**

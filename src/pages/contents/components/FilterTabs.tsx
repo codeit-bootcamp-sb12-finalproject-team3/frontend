@@ -1,8 +1,8 @@
-import type { ContentType } from '@/lib/types';
+import type { ContentTypeFilter } from '@/lib/types';
 
 interface FilterTabsProps {
-  selectedType: ContentType | 'ALL';
-  onTypeChange: (type: ContentType | 'ALL') => void;
+  selectedType: ContentTypeFilter | 'ALL';
+  onTypeChange: (type: ContentTypeFilter | 'ALL') => void;
 }
 
 const FILTER_OPTIONS = [

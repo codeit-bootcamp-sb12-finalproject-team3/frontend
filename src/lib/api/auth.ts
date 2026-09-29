@@ -33,6 +33,7 @@ let csrfTokenRequest: Promise<string> | null = null;
  * Note: Uses application/x-www-form-urlencoded format
  */
 export const signIn = async (credentials: SignInRequest): Promise<JwtDto> => {
+  csrfToken = null;
   await getCsrfToken();
 
   const params = new URLSearchParams();
@@ -46,6 +47,21 @@ export const signIn = async (credentials: SignInRequest): Promise<JwtDto> => {
   });
 
   // Spring Security replaces the cookie-backed CSRF token after authentication.
+  csrfToken = null;
+  return response.data;
+};
+
+/**
+ * Exchange OAuth2 login code for JWT.
+ * POST /api/auth/oauth/exchange
+ */
+export const exchangeOAuth2Code = async (code: string): Promise<JwtDto> => {
+  await getCsrfToken();
+
+  const response = await apiClient.post<JwtDto>('/api/auth/oauth/exchange', {
+    code,
+  });
+
   csrfToken = null;
   return response.data;
 };
@@ -76,15 +92,16 @@ export const refreshToken = async (): Promise<JwtDto> => {
 };
 
 /**
- * Reset password (비밀번호 초기화)
- * POST /api/auth/reset-password
+ * Request temporary password (임시 비밀번호 발급)
+ * POST /api/auth/password/reset-request
  *
  * @param request - Email to send temporary password
  *
  * Note: Sends temporary password to email
  */
 export const resetPassword = async (request: ResetPasswordRequest): Promise<void> => {
-  await apiClient.post('/api/auth/reset-password', request);
+  await getCsrfToken();
+  await apiClient.post('/api/auth/password/reset-request', request);
 };
 
 /**

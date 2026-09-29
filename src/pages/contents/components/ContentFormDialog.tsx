@@ -5,9 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { createContent, updateContent } from '@/lib/api/contents';
+import { createContent, getContentGenres, updateContent } from '@/lib/api/contents';
 import useContentStore from '@/lib/stores/useContentStore';
-import type { ContentDto, ContentType, ContentCreateRequest, ContentUpdateRequest } from '@/lib/types';
+import type {
+  ContentCreateRequest,
+  ContentDto,
+  ContentGenre,
+  ContentSummaryResponse,
+  ContentType,
+  ContentUpdateRequest,
+} from '@/lib/types';
 import icX from '@/assets/ic_X.svg';
 
 const ContentTypeLabel: Record<ContentType, string> = {
@@ -20,7 +27,7 @@ interface ContentFormDialogProps {
   mode: 'create' | 'edit';
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialData?: ContentDto;
+  initialData?: ContentDto | ContentSummaryResponse;
 }
 
 export default function ContentFormDialog({ mode, open, onOpenChange, initialData }: ContentFormDialogProps) {
@@ -29,6 +36,9 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
   const [type, setType] = useState<ContentType>('movie');
   const [tagInput, setTagInput] = useState('');
   const [tagList, setTagList] = useState<string[]>([]);
+  const [genres, setGenres] = useState<ContentGenre[]>([]);
+  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
+  const [genresLoading, setGenresLoading] = useState(false);
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
@@ -38,8 +48,8 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
     if (mode === 'edit' && initialData) {
       setTitle(initialData.title);
       setDescription(initialData.description || '');
-      setType(initialData.type);
-      setTagList(initialData.tags || []);
+      setType(initialData.type === 'tvSeason' ? 'tvSeries' : initialData.type);
+      setTagList(initialData.tags.map((tag) => typeof tag === 'string' ? tag : tag.name));
       setTagInput('');
       setThumbnailPreview(initialData.thumbnailUrl || '');
     } else {
@@ -49,10 +59,36 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
       setType('movie');
       setTagList([]);
       setTagInput('');
+      setSelectedGenreIds([]);
       setThumbnail(null);
       setThumbnailPreview('');
     }
   }, [mode, initialData, open]);
+
+  useEffect(() => {
+    if (!open || mode !== 'create' || type !== 'movie') return;
+
+    let cancelled = false;
+    setGenresLoading(true);
+
+    void getContentGenres('movie')
+      .then((data) => {
+        if (!cancelled) setGenres(data);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error('Failed to load content genres:', error);
+          toast.error('장르 목록을 불러오지 못했습니다.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setGenresLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, open, type]);
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,10 +104,21 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
 
   const handleAddTag = () => {
     const trimmedTag = tagInput.trim();
-    if (trimmedTag && !tagList.includes(trimmedTag)) {
-      setTagList([...tagList, trimmedTag]);
-      setTagInput('');
+    if (!trimmedTag || tagList.includes(trimmedTag)) return;
+    if (tagList.length >= 3) {
+      toast.error('태그는 최대 3개까지 등록할 수 있습니다.');
+      return;
     }
+    setTagList([...tagList, trimmedTag]);
+    setTagInput('');
+  };
+
+  const handleGenreToggle = (genreId: string) => {
+    setSelectedGenreIds((current) =>
+      current.includes(genreId)
+        ? current.filter((id) => id !== genreId)
+        : [...current, genreId],
+    );
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
@@ -95,6 +142,14 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
       toast.error('설명을 입력해주세요.');
       return false;
     }
+    if (mode === 'create' && type === 'movie' && selectedGenreIds.length === 0) {
+      toast.error('장르를 1개 이상 선택해주세요.');
+      return false;
+    }
+    if (mode === 'create' && type !== 'movie') {
+      toast.error('현재 등록 폼은 영화 등록만 지원합니다.');
+      return false;
+    }
     if (mode === 'create' && !thumbnail) {
       toast.error('썸네일 이미지를 선택해주세요.');
       return false;
@@ -111,15 +166,16 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
         const data: ContentCreateRequest = {
           title: title.trim(),
           description: description.trim(),
-          type,
+          type: 'movie',
+          genreIds: selectedGenreIds,
           tags: tagList,
         };
 
         // Call API
-        const newContent = await createContent(data, thumbnail!);
+        await createContent(data, thumbnail!);
 
         // Sync store
-        useContentStore.getState().add(newContent);
+        await useContentStore.getState().fetch();
 
         toast.success('콘텐츠가 등록되었습니다.');
         onOpenChange(false);
@@ -132,10 +188,10 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
         };
 
         // Call API
-        const updatedContent = await updateContent(initialData!.id, data, thumbnail || undefined);
+        await updateContent(initialData!.id, data, thumbnail || undefined);
 
         // Sync store
-        useContentStore.getState().update(initialData!.id, updatedContent);
+        await useContentStore.getState().fetch();
 
         toast.success('콘텐츠가 수정되었습니다.');
         onOpenChange(false);
@@ -256,6 +312,36 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
             </div>
           )}
 
+          {mode === 'create' && type === 'movie' && (
+            <div className="flex flex-col gap-2">
+              <Label className="text-body2-sb text-gray-300">
+                장르 <span className="text-pink-500">*</span>
+              </Label>
+              {genresLoading ? (
+                <p className="text-body3-m text-gray-400">장르 목록을 불러오는 중입니다.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {genres.map((genre) => {
+                    const selected = selectedGenreIds.includes(genre.id);
+                    return (
+                      <button
+                        key={genre.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => handleGenreToggle(genre.id)}
+                        className={selected
+                          ? 'rounded-full border border-pink-500 bg-pink-500/20 px-3 py-1.5 text-body3-m text-pink-400'
+                          : 'rounded-full border border-gray-600 bg-gray-700 px-3 py-1.5 text-body3-m text-gray-300 hover:bg-gray-600'}
+                      >
+                        {genre.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Tags */}
           <div className="flex flex-col gap-2">
             <Label htmlFor="tags" className="text-body2-sb text-gray-300">
@@ -297,7 +383,7 @@ export default function ContentFormDialog({ mode, open, onOpenChange, initialDat
               <Button
                 type="button"
                 onClick={handleAddTag}
-                disabled={!tagInput.trim()}
+                disabled={!tagInput.trim() || tagList.length >= 3}
                 className="bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-700"
                 variant="outline"
               >

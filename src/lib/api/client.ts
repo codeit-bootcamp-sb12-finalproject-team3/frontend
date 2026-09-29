@@ -57,6 +57,7 @@ apiClient.interceptors.request.use(
         '/api/auth/login',
         '/api/auth/refresh',
         '/api/auth/logout',
+        '/api/auth/oauth/exchange',
       ].some((path) => config.url?.includes(path));
 
       if (token && !isCookieAuthRequest) {

@@ -40,8 +40,8 @@ export default function MessageThread({ conversationId, onSendMessage, isConnect
   }, [conversationId, updateParams, clearData, updateConversationDetailParam, clearConversationDetailData]);
 
   useEffect(() => {
-    if (conversation && conversation.lastestMessage) {
-      markDirectMessageAsRead(conversation.id, conversation.lastestMessage.id);
+    if (conversation && conversation.latestMessage) {
+      markDirectMessageAsRead(conversation.id, conversation.latestMessage.id);
       updateConversation(conversation.id, { hasUnread: false });
     }
   }, [conversation]);
@@ -109,12 +109,12 @@ export default function MessageThread({ conversationId, onSendMessage, isConnect
     if (index === 0) return true;
     const currentMessage = messagesArray[index];
     const previousMessage = messagesArray[index - 1];
-    return currentMessage.sender.userId !== previousMessage.sender.userId;
+    return currentMessage.senderId !== previousMessage.senderId;
   };
 
   // Get other user info (temporary - assumes first message sender who isn't me)
   const currentUserId = authentication?.userDto.id;
-  const otherUser = conversation?.with;
+  const otherUser = conversation?.peer;
   const otherUserName = otherUser?.name;
 
   // Reverse messages for display (server returns newest first, but UI shows oldest first)
@@ -179,8 +179,9 @@ export default function MessageThread({ conversationId, onSendMessage, isConnect
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  isMine={message.sender.userId === currentUserId}
+                  isMine={message.senderId === currentUserId}
                   showProfile={shouldShowProfile(index, displayMessages)}
+                  peer={otherUser}
                 />
               ))}
               <div ref={messagesEndRef} />

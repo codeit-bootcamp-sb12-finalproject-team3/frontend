@@ -9,14 +9,32 @@
 
 import apiClient from './client';
 import type {
+  ContentCreateResponse,
   ContentDto,
   ContentCreateRequest,
+  ContentGenre,
+  ContentSearchParams,
+  ContentSportType,
   ContentUpdateRequest,
-  CursorResponseContentDto,
-  CursorResponseSelectableContent,
-  FindContentsParams,
-  SelectableContentSearchParams,
+  CursorResponseContentSummary,
 } from '@/lib/types';
+
+const CONTENT_TYPE_QUERY_VALUES = {
+  movie: 'MOVIE',
+  tvSeries: 'TV_SERIES',
+  sport: 'SPORT',
+} as const;
+
+const CONTENT_SORT_QUERY_VALUES = {
+  latest: 'LATEST',
+  rating: 'RATING',
+} as const;
+
+const toContentQueryParams = (params: ContentSearchParams) => ({
+  ...params,
+  typeEqual: params.typeEqual ? CONTENT_TYPE_QUERY_VALUES[params.typeEqual] : undefined,
+  sortBy: params.sortBy ? CONTENT_SORT_QUERY_VALUES[params.sortBy] : undefined,
+});
 
 /**
  * Get contents list with cursor pagination (콘텐츠 목록 조회)
@@ -25,19 +43,26 @@ import type {
  * @param params - Query parameters for filtering, sorting, and pagination
  * @returns Paginated list of contents
  */
-export const getContents = async (params?: FindContentsParams): Promise<CursorResponseContentDto> => {
-  const response = await apiClient.get<CursorResponseContentDto>('/api/contents', { params });
+export const getContents = async (
+  params: ContentSearchParams,
+): Promise<CursorResponseContentSummary> => {
+  const response = await apiClient.get<CursorResponseContentSummary>('/api/contents', {
+    params: toContentQueryParams(params),
+  });
   return response.data;
 };
 
-/**
- * Get movie or TV season candidates for playlist creation.
- * The backend uses typeEqual=tvSeries to query TV_SEASON rows.
- */
-export const getSelectableContents = async (
-  params: SelectableContentSearchParams,
-): Promise<CursorResponseSelectableContent> => {
-  const response = await apiClient.get<CursorResponseSelectableContent>('/api/contents', { params });
+export const getContentGenres = async (
+  type: 'movie' | 'tvSeries',
+): Promise<ContentGenre[]> => {
+  const response = await apiClient.get<ContentGenre[]>('/api/contents/genres', {
+    params: { type: CONTENT_TYPE_QUERY_VALUES[type] },
+  });
+  return response.data;
+};
+
+export const getContentSportTypes = async (): Promise<ContentSportType[]> => {
+  const response = await apiClient.get<ContentSportType[]>('/api/contents/sport-types');
   return response.data;
 };
 
@@ -66,7 +91,9 @@ export const getContent = async (contentId: string): Promise<ContentDto> => {
 export const createContent = async (
   data: ContentCreateRequest,
   thumbnail: File,
-): Promise<ContentDto> => {
+): Promise<ContentCreateResponse> => {
+
+  console.log('CONTENT CREATE REQUEST:', data);
   const formData = new FormData();
 
   // Append request data as JSON blob
@@ -78,7 +105,7 @@ export const createContent = async (
   // Append thumbnail (required)
   formData.append('thumbnail', thumbnail);
 
-  const response = await apiClient.post<ContentDto>('/api/contents', formData, {
+  const response = await apiClient.post<ContentCreateResponse>('/api/contents', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },

@@ -6,11 +6,25 @@
 
 // Export commonly used schema types
 import type { components, operations } from './api';
+import type { ContentSearchParams } from './contents';
 import type {
   CursorResponsePlaylistSummary,
   PlaylistSearchParams,
 } from './playlists';
 
+export type {
+  ContentCreateRequest,
+  ContentCreateResponse,
+  ContentGenre,
+  ContentSearchParams,
+  ContentSort,
+  ContentSportType,
+  ContentSummaryResponse,
+  ContentSummaryType,
+  ContentTag,
+  ContentTypeFilter,
+  CursorResponseContentSummary,
+} from './contents';
 export type {
   CursorResponsePlaylistSummary,
   PlaylistContentSummary,
@@ -21,12 +35,21 @@ export type {
   PlaylistSummary,
 } from './playlists';
 export type {
-  CursorResponseSelectableContent,
-  SelectableContent,
-  SelectableContentSearchParams,
-  SelectableContentType,
-  SelectableContentTypeFilter,
-} from './contents';
+  CreateWatchPartyRequest,
+  CursorPageWatchPartyResponse,
+  WatchPartyContentSummary,
+  WatchPartyHostSummary,
+  WatchPartyChatMessage,
+  WatchPartyChatSendRequest,
+  WatchPartyPlaybackAction,
+  WatchPartyPlaybackControlRequest,
+  WatchPartyPlaybackState,
+  WatchPartyPlaybackStatus,
+  WatchPartyResponse,
+  WatchPartySearchParams,
+  WatchPartyStatus,
+  WatchPartySummaryResponse,
+} from './watch-parties';
 
 // User types
 export type UserDto = components['schemas']['UserDto'];
@@ -44,7 +67,6 @@ export type ChangePasswordRequest = components['schemas']['ChangePasswordRequest
 
 // Content types
 export type ContentDto = components['schemas']['ContentDto'];
-export type ContentCreateRequest = components['schemas']['ContentCreateRequest'];
 export type ContentUpdateRequest = components['schemas']['ContentUpdateRequest'];
 export type ContentSummary = components['schemas']['ContentSummary'];
 export type ContentChatDto = {
@@ -63,9 +85,18 @@ export type ReviewCreateRequest = components['schemas']['ReviewCreateRequest'];
 export type ReviewUpdateRequest = components['schemas']['ReviewUpdateRequest'];
 
 // Conversation & Direct Message types
-export type ConversationDto = components['schemas']['ConversationDto'];
+export type ConversationResponseDto = components['schemas']['ConversationResponse'];
+export type ConversationDto = components['schemas']['ConversationListResponse'];
 export type ConversationCreateRequest = components['schemas']['ConversationCreateRequest'];
 export type DirectMessageDto = components['schemas']['DirectMessageDto'];
+export interface DmMessageCreatedPayload {
+  messageId: string;
+  conversationId: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  createdAt: string;
+}
 
 // Follow types
 export type FollowDto = components['schemas']['FollowDto'];
@@ -87,7 +118,7 @@ export type CursorResponseUserDto = components['schemas']['CursorResponseUserDto
 export type CursorResponseContentDto = components['schemas']['CursorResponseContentDto'];
 export type CursorResponsePlaylistDto = CursorResponsePlaylistSummary;
 export type CursorResponseReviewDto = components['schemas']['CursorResponseReviewDto'];
-export type CursorResponseConversationDto = components['schemas']['CursorResponseConversationDto'];
+export type CursorResponseConversationListResponse = components['schemas']['CursorResponseConversationListResponse'];
 export type CursorResponseDirectMessageDto = components['schemas']['CursorResponseDirectMessageDto'];
 export type CursorResponseNotificationDto = components['schemas']['CursorResponseNotificationDto'];
 export type CursorResponseWatchingSessionDto = components['schemas']['CursorResponseWatchingSessionDto'];
@@ -97,7 +128,7 @@ export type CursorResponse =
     | CursorResponseContentDto
     | CursorResponsePlaylistDto
     | CursorResponseReviewDto
-    | CursorResponseConversationDto
+    | CursorResponseConversationListResponse
     | CursorResponseDirectMessageDto
     | CursorResponseNotificationDto
     | CursorResponseWatchingSessionDto;
@@ -123,7 +154,7 @@ export type NotificationLevel = 'INFO' | 'WARNING' | 'ERROR';
 export type FindUsersParams = operations['findUsers']['parameters']['query'];
 
 // Content query params
-export type FindContentsParams = operations['findContents']['parameters']['query'];
+export type FindContentsParams = ContentSearchParams;
 
 // Playlist query params
 export type FindPlaylistsParams = PlaylistSearchParams;
