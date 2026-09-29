@@ -3,6 +3,8 @@ import type {
   CreateWatchPartyRequest,
   CursorPageWatchPartyResponse,
   WatchPartyResponse,
+  WatchPartyChatHistoryMessage,
+  WatchPartyParticipantResponse,
   WatchPartySearchParams,
   WatchPartySummaryResponse,
 } from '@/lib/types';
@@ -40,6 +42,41 @@ export const joinWatchParty = async (partyId: string): Promise<void> => {
 
 export const leaveWatchParty = async (partyId: string): Promise<void> => {
   await apiClient.delete(`/api/watch-parties/${partyId}/participants/me`);
+};
+
+export const getWatchPartyChatMessages = async (
+  partyId: string,
+  limit = 50,
+): Promise<WatchPartyChatHistoryMessage[]> => {
+  const response = await apiClient.get<WatchPartyChatHistoryMessage[]>(
+    `/api/watch-parties/${partyId}/chat-messages`,
+    { params: { limit } },
+  );
+  return response.data;
+};
+
+export const getWatchPartyParticipants = async (
+  partyId: string,
+): Promise<WatchPartyParticipantResponse[]> => {
+  const response = await apiClient.get<WatchPartyParticipantResponse[]>(
+    `/api/watch-parties/${partyId}/participants`,
+  );
+  return response.data;
+};
+
+export const kickWatchPartyParticipant = async (
+  partyId: string,
+  userId: string,
+): Promise<void> => {
+  await apiClient.delete(`/api/watch-parties/${partyId}/participants/${userId}`);
+};
+
+export const setWatchPartyReminder = async (partyId: string): Promise<void> => {
+  await apiClient.post(`/api/watch-parties/${partyId}/reminders`);
+};
+
+export const cancelWatchPartyReminder = async (partyId: string): Promise<void> => {
+  await apiClient.delete(`/api/watch-parties/${partyId}/reminders`);
 };
 
 export const startWatchParty = async (partyId: string): Promise<void> => {

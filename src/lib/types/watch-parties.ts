@@ -67,6 +67,24 @@ export interface WatchPartyChatMessage {
   sentAt: number;
 }
 
+export interface WatchPartyChatHistoryMessage {
+  senderId: string;
+  content: string;
+  sentAt: string | null;
+}
+
+export interface WatchPartyParticipantResponse {
+  user: WatchPartyHostSummary;
+  joinedAt: string;
+}
+
+export type WatchPartyParticipantStatus = 'JOINED' | 'LEFT' | 'KICKED';
+
+export interface WatchPartyParticipantChangedMessage {
+  userId: string;
+  status: WatchPartyParticipantStatus;
+}
+
 export interface CreateWatchPartyRequest {
   contentId: string;
   title: string;

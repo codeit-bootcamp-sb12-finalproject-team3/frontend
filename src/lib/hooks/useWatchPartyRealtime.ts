@@ -8,6 +8,7 @@ import type {
   WatchPartyChatSendRequest,
   WatchPartyPlaybackControlRequest,
   WatchPartyPlaybackState,
+  WatchPartyParticipantChangedMessage,
 } from '@/lib/types';
 
 interface UseWatchPartyRealtimeOptions {
@@ -15,6 +16,7 @@ interface UseWatchPartyRealtimeOptions {
   accessToken?: string;
   onPlayback: (state: WatchPartyPlaybackState) => void;
   onChat: (message: WatchPartyChatMessage) => void;
+  onParticipantChanged: (message: WatchPartyParticipantChangedMessage) => void;
   onServerError: (message: string) => void;
 }
 
@@ -23,17 +25,18 @@ export function useWatchPartyRealtime({
   accessToken,
   onPlayback,
   onChat,
+  onParticipantChanged,
   onServerError,
 }: UseWatchPartyRealtimeOptions) {
   const clientRef = useRef<Client | null>(null);
   const subscriptionsRef = useRef<StompSubscription[]>([]);
-  const handlersRef = useRef({ onPlayback, onChat, onServerError });
+  const handlersRef = useRef({ onPlayback, onChat, onParticipantChanged, onServerError });
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    handlersRef.current = { onPlayback, onChat, onServerError };
-  }, [onPlayback, onChat, onServerError]);
+    handlersRef.current = { onPlayback, onChat, onParticipantChanged, onServerError };
+  }, [onPlayback, onChat, onParticipantChanged, onServerError]);
 
   useEffect(() => {
     if (!partyId || !accessToken) return;
@@ -73,6 +76,11 @@ export function useWatchPartyRealtime({
         }),
         client.subscribe(`/sub/watch-parties/${partyId}/playback`, (message) => {
           handlersRef.current.onPlayback(JSON.parse(message.body) as WatchPartyPlaybackState);
+        }),
+        client.subscribe(`/sub/watch-parties/${partyId}/participants`, (message) => {
+          handlersRef.current.onParticipantChanged(
+            JSON.parse(message.body) as WatchPartyParticipantChangedMessage,
+          );
         }),
       ];
       setConnected(true);

@@ -1,19 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBlocker, useNavigate, useParams } from 'react-router-dom';
-import { CalendarClock, Clock3, Users } from 'lucide-react';
+import { Bell, BellRing, CalendarClock, Clock3, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { endWatchParty, getWatchParty, leaveWatchParty, startWatchParty } from '@/lib/api/watch-parties';
+import {
+  endWatchParty,
+  getWatchParty,
+  getWatchPartyChatMessages,
+  getWatchPartyParticipants,
+  kickWatchPartyParticipant,
+  leaveWatchParty,
+  startWatchParty,
+} from '@/lib/api/watch-parties';
 import { useWatchPartyRealtime } from '@/lib/hooks/useWatchPartyRealtime';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
+import useWatchPartyReminderStore from '@/lib/stores/useWatchPartyReminderStore';
 import type {
   WatchPartyChatMessage,
+  WatchPartyParticipantChangedMessage,
+  WatchPartyParticipantResponse,
   WatchPartyPlaybackState,
   WatchPartyResponse,
 } from '@/lib/types';
 import ChatPanel from './components/ChatPanel';
 import PlaybackPanel from './components/PlaybackPanel';
+import ParticipantPanel from './components/ParticipantPanel';
 
 const STATUS_LABELS = {
   SCHEDULED: '예정',
@@ -35,13 +47,37 @@ const toPlaybackState = (party: WatchPartyResponse): WatchPartyPlaybackState | n
   };
 };
 
+const chatMessageKey = (message: WatchPartyChatMessage) =>
+  `${message.senderId}\u0000${message.sentAt}\u0000${message.content}`;
+
+const mergeChatMessages = (
+  current: WatchPartyChatMessage[],
+  incoming: WatchPartyChatMessage[],
+) => {
+  const unique = new Map(current.map((message) => [chatMessageKey(message), message]));
+  incoming.forEach((message) => unique.set(chatMessageKey(message), message));
+  return [...unique.values()].sort((left, right) => left.sentAt - right.sentAt);
+};
+
 export default function WatchPartyRoomPage() {
   const { partyId } = useParams<{ partyId: string }>();
   const navigate = useNavigate();
   const authentication = useAuthStore((state) => state.data);
+  const scheduledPartyIds = useWatchPartyReminderStore((state) => state.scheduledPartyIds);
+  const reminderLoaded = useWatchPartyReminderStore((state) => state.loaded);
+  const reminderLoading = useWatchPartyReminderStore((state) => state.loading);
+  const reminderMutatingPartyIds = useWatchPartyReminderStore((state) => state.mutatingPartyIds);
+  const fetchReminders = useWatchPartyReminderStore((state) => state.fetch);
+  const setReminder = useWatchPartyReminderStore((state) => state.setReminder);
+  const cancelReminder = useWatchPartyReminderStore((state) => state.cancelReminder);
   const [party, setParty] = useState<WatchPartyResponse | null>(null);
   const [playback, setPlayback] = useState<WatchPartyPlaybackState | null>(null);
   const [messages, setMessages] = useState<WatchPartyChatMessage[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [participants, setParticipants] = useState<WatchPartyParticipantResponse[]>([]);
+  const [participantsLoading, setParticipantsLoading] = useState(true);
+  const [participantsError, setParticipantsError] = useState<string | null>(null);
+  const [kickingUserId, setKickingUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusChanging, setStatusChanging] = useState(false);
@@ -51,6 +87,8 @@ export default function WatchPartyRoomPage() {
   const blockedNavigationInProgress = useRef(false);
   const realtimePlaybackReceived = useRef(false);
   const requestSequence = useRef(0);
+  const historyRequestSequence = useRef(0);
+  const participantsRequestSequence = useRef(0);
   const startRefreshTimer = useRef<number | null>(null);
 
   const loadParty = useCallback(async () => {
@@ -72,6 +110,46 @@ export default function WatchPartyRoomPage() {
     }
   }, [partyId]);
 
+  const loadChatHistory = useCallback(async () => {
+    if (!partyId) return;
+    const sequence = ++historyRequestSequence.current;
+    setHistoryLoading(true);
+    try {
+      const history = await getWatchPartyChatMessages(partyId, 50);
+      if (sequence !== historyRequestSequence.current) return;
+      const normalized = history.flatMap<WatchPartyChatMessage>((message) => {
+        if (!message.sentAt) return [];
+        const sentAt = Date.parse(message.sentAt);
+        return Number.isFinite(sentAt) ? [{ ...message, sentAt }] : [];
+      });
+      setMessages((current) => mergeChatMessages(current, normalized));
+    } catch (requestError) {
+      if (sequence !== historyRequestSequence.current) return;
+      console.error(requestError);
+      toast.error('기존 채팅 이력을 불러오지 못했습니다. 실시간 채팅은 계속 사용할 수 있습니다.');
+    } finally {
+      if (sequence === historyRequestSequence.current) setHistoryLoading(false);
+    }
+  }, [partyId]);
+
+  const loadParticipants = useCallback(async () => {
+    if (!partyId) return;
+    const sequence = ++participantsRequestSequence.current;
+    setParticipantsLoading(true);
+    setParticipantsError(null);
+    try {
+      const response = await getWatchPartyParticipants(partyId);
+      if (sequence !== participantsRequestSequence.current) return;
+      setParticipants(response);
+    } catch (requestError) {
+      if (sequence !== participantsRequestSequence.current) return;
+      console.error(requestError);
+      setParticipantsError('참여자 목록을 불러오지 못했습니다.');
+    } finally {
+      if (sequence === participantsRequestSequence.current) setParticipantsLoading(false);
+    }
+  }, [partyId]);
+
   useEffect(() => {
     hasLeft.current = false;
     blockedNavigationInProgress.current = false;
@@ -79,12 +157,22 @@ export default function WatchPartyRoomPage() {
     setParty(null);
     setPlayback(null);
     setMessages([]);
+    setParticipants([]);
     void loadParty();
+    void loadChatHistory();
+    void loadParticipants();
     return () => {
       requestSequence.current += 1;
+      historyRequestSequence.current += 1;
+      participantsRequestSequence.current += 1;
       if (startRefreshTimer.current !== null) window.clearTimeout(startRefreshTimer.current);
     };
-  }, [loadParty]);
+  }, [loadChatHistory, loadParticipants, loadParty]);
+
+  useEffect(() => {
+    const currentUserId = authentication?.userDto.id;
+    if (currentUserId) void fetchReminders(currentUserId);
+  }, [authentication?.userDto.id, fetchReminders]);
 
   const handlePlayback = useCallback((state: WatchPartyPlaybackState) => {
     realtimePlaybackReceived.current = true;
@@ -92,8 +180,19 @@ export default function WatchPartyRoomPage() {
   }, []);
 
   const handleChat = useCallback((message: WatchPartyChatMessage) => {
-    setMessages((current) => [...current, message]);
+    setMessages((current) => mergeChatMessages(current, [message]));
   }, []);
+
+  const handleParticipantChanged = useCallback((message: WatchPartyParticipantChangedMessage) => {
+    const currentUserId = useAuthStore.getState().data?.userDto.id;
+    if (message.status === 'KICKED' && message.userId === currentUserId) {
+      hasLeft.current = true;
+      toast.error('Watch Party에서 강퇴되었습니다.');
+      navigate('/watch-parties', { replace: true });
+      return;
+    }
+    void loadParticipants();
+  }, [loadParticipants, navigate]);
 
   const handleServerError = useCallback((message: string) => {
     toast.error(message || '실시간 요청을 처리하지 못했습니다.');
@@ -104,6 +203,7 @@ export default function WatchPartyRoomPage() {
     accessToken: authentication?.accessToken,
     onPlayback: handlePlayback,
     onChat: handleChat,
+    onParticipantChanged: handleParticipantChanged,
     onServerError: handleServerError,
   });
 
@@ -197,6 +297,39 @@ export default function WatchPartyRoomPage() {
     }
   };
 
+  const handleKick = async (userId: string) => {
+    if (!partyId || !isHost || userId === authentication?.userDto.id || kickingUserId) return;
+    setKickingUserId(userId);
+    try {
+      await kickWatchPartyParticipant(partyId, userId);
+      await loadParticipants();
+      toast.success('참여자를 강퇴했습니다.');
+    } catch (requestError) {
+      console.error(requestError);
+      toast.error('참여자를 강퇴하지 못했습니다.');
+    } finally {
+      setKickingUserId(null);
+    }
+  };
+
+  const handleReminder = async () => {
+    const currentUserId = authentication?.userDto.id;
+    if (!partyId || !currentUserId || isHost || party?.status !== 'SCHEDULED') return;
+    const registered = scheduledPartyIds.has(partyId);
+    try {
+      if (registered) {
+        await cancelReminder(currentUserId, partyId);
+        toast.success('Watch Party 알림을 해제했습니다.');
+      } else {
+        await setReminder(currentUserId, partyId);
+        toast.success('Watch Party 알림을 등록했습니다.');
+      }
+    } catch (requestError) {
+      console.error(requestError);
+      toast.error(registered ? '알림을 해제하지 못했습니다.' : '알림을 등록하지 못했습니다.');
+    }
+  };
+
   if (loading && !party) {
     return <div className="flex min-h-[70vh] items-center justify-center"><LoadingSpinner /></div>;
   }
@@ -211,6 +344,11 @@ export default function WatchPartyRoomPage() {
   }
 
   const chatDisabled = !connected || party.status === 'ENDED';
+  const participantCount = participantsError || (participantsLoading && participants.length === 0)
+    ? party.currentParticipantCount
+    : participants.length;
+  const reminderRegistered = scheduledPartyIds.has(party.id);
+  const reminderMutating = reminderMutatingPartyIds.has(party.id);
 
   return (
     <div className="px-8 py-8 xl:px-[50px]">
@@ -224,13 +362,25 @@ export default function WatchPartyRoomPage() {
           {party.description && <p className="mt-2 max-w-3xl text-body2-m text-gray-400">{party.description}</p>}
         </div>
         <div className="flex gap-3">
+          {!isHost && party.status === 'SCHEDULED' && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleReminder()}
+              disabled={reminderLoading || !reminderLoaded || reminderMutating}
+              className="gap-2 border-gray-600 text-gray-200"
+            >
+              {reminderRegistered ? <BellRing className="size-4" /> : <Bell className="size-4" />}
+              {reminderMutating ? '처리 중...' : reminderRegistered ? '알림 받는 중' : '알림 받기'}
+            </Button>
+          )}
           {isHost && party.status === 'SCHEDULED' && <Button onClick={handleStart} disabled={statusChanging} className="bg-pink-600 text-white hover:bg-pink-700">{statusChanging ? '처리 중...' : '파티 시작'}</Button>}
           {isHost && party.status === 'LIVE' && <Button variant="destructive" onClick={handleEnd} disabled={statusChanging}>{statusChanging ? '처리 중...' : '파티 종료'}</Button>}
           {!isHost && party.status !== 'ENDED' && <Button variant="outline" onClick={handleLeave} disabled={leaving} className="border-gray-600 text-gray-200">{leaving ? '퇴장 중...' : '파티 퇴장'}</Button>}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(300px,0.8fr)_minmax(360px,1fr)_minmax(360px,1.1fr)]">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(300px,0.8fr)_minmax(360px,1fr)_minmax(360px,1.1fr)]">
         <aside className="space-y-6">
           <section className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/60">
             <div className="aspect-[16/9] bg-gray-800">
@@ -241,20 +391,36 @@ export default function WatchPartyRoomPage() {
               <div className="space-y-3 text-body3-m text-gray-400">
                 <p className="flex items-center gap-2"><CalendarClock className="h-4 w-4" />{new Date(party.scheduledAt).toLocaleString('ko-KR')}</p>
                 <p className="flex items-center gap-2"><Clock3 className="h-4 w-4" />예정 시간 {party.sessionDurationMinutes}분</p>
-                <p className="flex items-center gap-2"><Users className="h-4 w-4" />함께 보는 중 {party.currentParticipantCount}명 / 최대 {party.maxParticipants}명</p>
+                <p className="flex items-center gap-2"><Users className="h-4 w-4" />함께 보는 중 {participantCount}명 / 최대 {party.maxParticipants}명</p>
               </div>
               {party.startEpisode !== null && <p className="rounded-xl bg-gray-800 px-4 py-3 text-body3-m text-gray-300">에피소드 {party.startEpisode} ~ {party.endEpisode}</p>}
             </div>
           </section>
-          <section className="rounded-2xl border border-gray-800 bg-gray-900/60 p-6">
-            <h2 className="text-title2-b text-white">참여 현황</h2>
-            <p className="mt-3 text-body2-m text-gray-300">함께 보는 중 {party.currentParticipantCount}명</p>
-            <p className="mt-2 text-caption1-m text-gray-500">참여자 상세 목록은 현재 서버에서 제공하지 않습니다.</p>
-          </section>
         </aside>
 
-        <PlaybackPanel state={playback} isHost={isHost} connected={connected} onControl={controlPlayback} />
-        <ChatPanel messages={messages} currentUserId={authentication?.userDto.id} connected={connected} disabled={chatDisabled} onSend={(content) => sendChat({ content })} />
+        <div className="space-y-6">
+          <PlaybackPanel state={playback} isHost={isHost} connected={connected} onControl={controlPlayback} />
+          <ParticipantPanel
+            host={party.host}
+            participants={participants}
+            currentUserId={authentication?.userDto.id}
+            isHost={isHost}
+            loading={participantsLoading}
+            error={participantsError}
+            kickingUserId={kickingUserId}
+            onRetry={() => void loadParticipants()}
+            onKick={(userId) => void handleKick(userId)}
+          />
+        </div>
+        <ChatPanel
+          key={party.id}
+          messages={messages}
+          currentUserId={authentication?.userDto.id}
+          connected={connected}
+          disabled={chatDisabled}
+          historyLoading={historyLoading}
+          onSend={(content) => sendChat({ content })}
+        />
       </div>
 
       {connecting && <p className="mt-4 text-center text-caption1-m text-gray-500">실시간 서버에 연결하는 중입니다.</p>}
