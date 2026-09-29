@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import usePlaylistStore from '@/lib/stores/usePlaylistStore';
+import useAiPlaylistStore from '@/lib/stores/useAiPlaylistStore';
 import PlaylistSortDropdown, { type PlaylistTab, type SortOption } from './components/PlaylistSortDropdown';
 import PlaylistGrid from './components/PlaylistGrid';
 import CreatePlaylistDialog from './components/CreatePlaylistDialog';
@@ -15,6 +16,7 @@ const TABS: { value: PlaylistTab; label: string }[] = [
 
 export default function PlaylistsPage() {
   const { data, loading, error, fetch, fetchMore, hasNext, updateParams } = usePlaylistStore();
+  const aiList = useAiPlaylistStore();
   const [activeTab, setActiveTab] = useState<PlaylistTab>('all');
   const [sortValue, setSortValue] = useState('latest');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -29,16 +31,24 @@ export default function PlaylistsPage() {
   }, [fetch]);
 
   useEffect(() => {
-    if (activeTab === 'all' && inView && hasNext() && !loading) {
-      void fetchMore();
+    if (activeTab === 'ai') {
+      void aiList.fetch();
     }
-  }, [activeTab, inView, hasNext, loading, fetchMore]);
+  }, [activeTab, aiList.fetch]);
+
+  useEffect(() => {
+    if (!inView) return;
+    if (activeTab === 'all' && hasNext() && !loading) void fetchMore();
+    if (activeTab === 'ai' && aiList.hasNext() && !aiList.loading) void aiList.fetchMore();
+  }, [activeTab, inView, hasNext, loading, fetchMore, aiList.hasNext, aiList.loading, aiList.fetchMore]);
 
   const handleTabChange = useCallback((tab: PlaylistTab) => {
     if (tab === activeTab) return;
     setActiveTab(tab);
     setSortValue(tab === 'popular' ? 'popular' : 'latest');
-    // AI/weekly top-20 filtering is implemented in separate steps.
+    if (tab === 'ai') {
+      aiList.clearData();
+    }
     // Reset the current list criteria when returning to the connected All tab.
     if (tab === 'all') {
       updateParams({
@@ -48,7 +58,7 @@ export default function PlaylistsPage() {
         sortDirection: 'DESCENDING',
       });
     }
-  }, [activeTab, updateParams]);
+  }, [activeTab, updateParams, aiList.clearData]);
 
   const handleSortChange = useCallback((option: SortOption) => {
     setSortValue(
@@ -58,12 +68,15 @@ export default function PlaylistsPage() {
     );
     if (activeTab === 'all') {
       updateParams({ sortBy: option.sortBy, sortDirection: option.sortDirection });
+    } else if (activeTab === 'ai') {
+      aiList.updateParams({ sortBy: option.sortBy, sortDirection: option.sortDirection });
     }
-  }, [activeTab, updateParams]);
+  }, [activeTab, updateParams, aiList.updateParams]);
 
   const handleSearch = useCallback((keyword: string) => {
-    updateParams({ keywordLike: keyword.trim() || undefined });
-  }, [updateParams]);
+    if (activeTab === 'all') updateParams({ keywordLike: keyword.trim() || undefined });
+    if (activeTab === 'ai') aiList.updateParams({ keywordLike: keyword.trim() || undefined });
+  }, [activeTab, updateParams, aiList.updateParams]);
 
   return (
     <div className="flex flex-col gap-10 px-[70px] py-10">
@@ -92,8 +105,8 @@ export default function PlaylistsPage() {
 
       <div role="tabpanel" id="playlist-tab-panel" aria-labelledby={`playlist-tab-${activeTab}`} className="flex flex-col gap-10">
         <div className="flex items-center justify-between gap-4">
-          {activeTab === 'all' ? (
-              <SearchBar key={activeTab} onSearch={handleSearch} placeholder="플레이리스트 또는 콘텐츠 검색" />
+          {activeTab !== 'popular' ? (
+            <SearchBar key={activeTab} onSearch={handleSearch} placeholder="플레이리스트 또는 콘텐츠 검색" />
           ) : (
             <div className="w-[331px]" />
           )}
@@ -105,7 +118,7 @@ export default function PlaylistsPage() {
             >
               + 플레이리스트 만들기
             </Button>
-            <PlaylistSortDropdown tab={activeTab} value={sortValue} onValueChange={handleSortChange} disabled={activeTab !== 'all'} />
+            <PlaylistSortDropdown tab={activeTab} value={sortValue} onValueChange={handleSortChange} disabled={activeTab === 'popular'} />
           </div>
         </div>
 
@@ -114,9 +127,14 @@ export default function PlaylistsPage() {
             <PlaylistGrid playlists={data} loading={loading} error={error} />
             {!loading && hasNext() && <div ref={sentinelRef} className="h-10" />}
           </>
+        ) : activeTab === 'ai' ? (
+          <>
+            <PlaylistGrid playlists={aiList.data} loading={aiList.loading} error={aiList.error} />
+            {!aiList.loading && aiList.hasNext() && <div ref={sentinelRef} className="h-10" />}
+          </>
         ) : (
           <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-2xl border border-gray-700 bg-gray-800/30 text-center">
-            <p className="text-body1-m text-white">{activeTab === 'ai' ? 'AI 추천 플레이리스트' : '주간 인기 플레이리스트'}</p>
+            <p className="text-body1-m text-white">주간 인기 플레이리스트</p>
             <p className="text-body3-m text-gray-400">목록 조회 연결은 다음 단계에서 진행합니다.</p>
           </div>
         )}

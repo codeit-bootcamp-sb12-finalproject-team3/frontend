@@ -31,6 +31,20 @@ export const getPlaylists = async (
   return response.data;
 };
 
+/** System AI account-owned playlists, filtered by backend configuration. */
+export const getAiPlaylists = async (params: PlaylistSearchParams): Promise<CursorResponsePlaylistSummary> => {
+  const query = {
+    keywordLike: params.keywordLike,
+    cursor: params.cursor,
+    idAfter: params.idAfter,
+    limit: params.limit,
+    sortBy: params.sortBy,
+    sortDirection: params.sortDirection,
+  };
+  const response = await apiClient.get<CursorResponsePlaylistSummary>('/api/playlists/ai', { params: query });
+  return response.data;
+};
+
 /**
  * Get single playlist (플레이리스트 단건 조회)
  * GET /api/playlists/{playlistId}
