@@ -18,12 +18,14 @@ interface AddToPlaylistDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contentId: string;
+  onAdded?: () => void | Promise<void>;
 }
 
 export default function AddToPlaylistDialog({
   open,
   onOpenChange,
   contentId,
+  onAdded,
 }: AddToPlaylistDialogProps) {
   const [userPlaylists, setUserPlaylists] = useState<PlaylistSummary[]>([]);
   const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<Set<string>>(new Set());
@@ -31,12 +33,10 @@ export default function AddToPlaylistDialog({
   const [adding, setAdding] = useState(false);
   const { data: jwt } = useAuthStore();
 
-  // 모달이 열릴 때 사용자의 플레이리스트 fetch
   useEffect(() => {
     if (open && jwt?.userDto.id) {
       fetchUserPlaylists();
     } else {
-      // 모달이 닫힐 때 상태 초기화
       setUserPlaylists([]);
       setSelectedPlaylistIds(new Set());
     }
@@ -56,7 +56,7 @@ export default function AddToPlaylistDialog({
       });
 
       setUserPlaylists(response.data);
-      setSelectedPlaylistIds(new Set()); // 초기 선택 없음
+      setSelectedPlaylistIds(new Set());
     } catch (err) {
       console.error('Failed to fetch playlists:', err);
       toast.error('플레이리스트를 불러오는데 실패했습니다.');
@@ -80,7 +80,6 @@ export default function AddToPlaylistDialog({
   const handleAddToPlaylists = async () => {
     setAdding(true);
     try {
-      // 선택된 플레이리스트에 콘텐츠 추가
       await Promise.all(
         Array.from(selectedPlaylistIds).map((playlistId) =>
           addContentToPlaylist(playlistId, contentId)
@@ -88,6 +87,7 @@ export default function AddToPlaylistDialog({
       );
 
       toast.success('플레이리스트에 추가되었습니다.');
+      await onAdded?.();
       onOpenChange(false);
     } catch (err) {
       console.error('Failed to add content to playlists:', err);
@@ -151,7 +151,6 @@ function PlaylistListView({
 }: PlaylistListViewProps) {
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* 헤더 */}
       <div className="flex items-center justify-between pb-6 shrink-0">
         <h2 className="text-title1-sb text-gray-300">플레이리스트 추가</h2>
         <DialogClose asChild>
@@ -161,7 +160,6 @@ function PlaylistListView({
         </DialogClose>
       </div>
 
-      {/* 플레이리스트 목록: 헤더(48px)+버튼(54px)+여백(92px)을 제외한 나머지 뷰포트 높이만큼만 스크롤 영역 확보 */}
       <div className="max-h-[min(452px,calc(100vh-226px))] overflow-y-auto mb-5">
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -185,9 +183,7 @@ function PlaylistListView({
         )}
       </div>
 
-      {/* 하단 버튼 - 한 줄 배치 */}
       <div className="flex gap-4 shrink-0">
-        {/* 추가 버튼 */}
         <button
           onClick={onAddToPlaylists}
           disabled={adding || selectedPlaylistIds.size === 0}

@@ -22,6 +22,7 @@ import ContentsPage from '@/pages/contents/page';
 import RecommendationsPage from '@/pages/recommendations/page';
 import PreferenceSelectionPage from '@/pages/preferences/page';
 import ContentDetailPage from '@/pages/contents/[contentId]/page';
+import EpisodeListPage from '@/pages/contents/[contentId]/episodes/page';
 import PlaylistsPage from '@/pages/playlists/page';
 import PlaylistDetailPage from '@/pages/playlists/[playlistId]/page';
 import ProfilePage from '@/pages/profiles/[userId]/page';
@@ -72,6 +73,7 @@ const router = createHashRouter(
               {/* Contents */}
               <Route path="/contents" element={<ContentsPage />} />
               <Route path="/contents/:contentId" element={<ContentDetailPage />} />
+              <Route path="/contents/:contentId/episodes" element={<EpisodeListPage />} />
 
               {/* Playlists */}
               <Route path="/playlists" element={<PlaylistsPage />} />

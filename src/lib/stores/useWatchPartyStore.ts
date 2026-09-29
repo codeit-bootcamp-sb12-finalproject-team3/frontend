@@ -19,6 +19,8 @@ interface WatchPartyStore {
   cursor: CursorState;
   loading: boolean;
   error: string | null;
+  contentIdEqual?: string;
+  setContentIdEqual: (contentId?: string) => void;
   setStatus: (status: WatchPartyStatus) => void;
   fetch: () => Promise<void>;
   fetchMore: () => Promise<void>;
@@ -40,12 +42,13 @@ const uniqueParties = (items: WatchPartySummaryResponse[]) =>
 
 const useWatchPartyStore = create<WatchPartyStore>((set, get) => {
   const request = async (append: boolean) => {
-    const { loading, status, cursor, data } = get();
+    const { loading, status, cursor, data, contentIdEqual } = get();
     if (loading || (append && !cursor.hasNext)) return;
 
     const sequence = ++requestSequence;
     const params: WatchPartySearchParams = {
       statusEqual: status,
+      contentIdEqual,
       limit: PAGE_SIZE,
       sortDirection: status === 'ENDED' ? 'DESCENDING' : 'ASCENDING',
       ...(append ? { cursor: cursor.nextCursor ?? undefined, idAfter: cursor.nextIdAfter ?? undefined } : {}),
@@ -84,6 +87,12 @@ const useWatchPartyStore = create<WatchPartyStore>((set, get) => {
     cursor: emptyCursor,
     loading: false,
     error: null,
+    contentIdEqual: undefined,
+    setContentIdEqual: (contentIdEqual) => {
+      requestSequence += 1;
+      set({ contentIdEqual, data: [], cursor: emptyCursor, error: null, loading: false });
+      void request(false);
+    },
     setStatus: (status) => {
       requestSequence += 1;
       set({ status, data: [], cursor: emptyCursor, error: null, loading: false });

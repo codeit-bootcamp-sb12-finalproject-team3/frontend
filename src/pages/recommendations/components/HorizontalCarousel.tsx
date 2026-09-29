@@ -46,7 +46,18 @@ export default function HorizontalCarousel({
   const scroll = (direction: -1 | 1) => {
     const element = scrollRef.current;
     if (!element) return;
-    element.scrollBy({ left: element.clientWidth * 0.8 * direction, behavior: 'smooth' });
+
+    const maxScrollLeft = Math.max(0, element.scrollWidth - element.clientWidth);
+    const targetScrollLeft = Math.min(
+      maxScrollLeft,
+      Math.max(0, element.scrollLeft + element.clientWidth * 0.8 * direction),
+    );
+
+    // 부드러운 스크롤이 시작되는 즉시 반대 방향 버튼을 노출하고,
+    // 실제 스크롤 이벤트에서 최종 위치를 다시 동기화한다.
+    setCanScrollLeft(targetScrollLeft > 1);
+    setCanScrollRight(targetScrollLeft < maxScrollLeft - 1);
+    element.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
   };
 
   const handleMouseDown = (event: MouseEvent<HTMLDivElement>) => {
@@ -107,24 +118,26 @@ export default function HorizontalCarousel({
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={() => scroll(-1)}
-        disabled={!canScrollLeft}
-        aria-label="이전 항목 보기"
-        className="absolute left-3 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-gray-950/90 text-white shadow-xl backdrop-blur transition hover:bg-gray-800 disabled:pointer-events-none disabled:opacity-0"
-      >
-        <ChevronLeft className="size-6" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        onClick={() => scroll(1)}
-        disabled={!canScrollRight}
-        aria-label="다음 항목 보기"
-        className="absolute right-3 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-gray-950/90 text-white shadow-xl backdrop-blur transition hover:bg-gray-800 disabled:pointer-events-none disabled:opacity-0"
-      >
-        <ChevronRight className="size-6" aria-hidden="true" />
-      </button>
+      {canScrollLeft && (
+        <button
+          type="button"
+          onClick={() => scroll(-1)}
+          aria-label="이전 항목 보기"
+          className="absolute left-3 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-gray-950/90 text-white shadow-xl backdrop-blur transition hover:bg-gray-800"
+        >
+          <ChevronLeft className="size-6" aria-hidden="true" />
+        </button>
+      )}
+      {canScrollRight && (
+        <button
+          type="button"
+          onClick={() => scroll(1)}
+          aria-label="다음 항목 보기"
+          className="absolute right-3 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-gray-950/90 text-white shadow-xl backdrop-blur transition hover:bg-gray-800"
+        >
+          <ChevronRight className="size-6" aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }

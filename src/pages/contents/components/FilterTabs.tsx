@@ -8,7 +8,7 @@ interface FilterTabsProps {
 const FILTER_OPTIONS = [
   { label: '전체', value: 'ALL' as const },
   { label: '영화', value: 'movie' },
-  { label: 'TV 시리즈', value: 'tvSeries' as const },
+  { label: '시리즈', value: 'tvSeries' as const },
   { label: '스포츠', value: 'sport' as const },
 ] as const;
 
@@ -17,8 +17,10 @@ export default function FilterTabs({ selectedType, onTypeChange }: FilterTabsPro
     <div className="flex gap-[9px] items-center">
       {FILTER_OPTIONS.map((option) => (
         <button
+          type="button"
           key={option.value}
           onClick={() => onTypeChange(option.value)}
+          aria-pressed={selectedType === option.value}
           className={`
             px-3 py-1 rounded-full text-body3-b transition-colors
             ${

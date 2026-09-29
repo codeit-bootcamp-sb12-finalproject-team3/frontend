@@ -1,28 +1,82 @@
 import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { joinWatchParty } from '@/lib/api/watch-parties';
+import { getContent } from '@/lib/api/contents';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useWatchPartyStore from '@/lib/stores/useWatchPartyStore';
-import type { WatchPartySummaryResponse } from '@/lib/types';
+import type { ContentResponse, ContentSummaryResponse, WatchPartySummaryResponse } from '@/lib/types';
 import CreateWatchPartyDialog from './components/CreateWatchPartyDialog';
 import WatchPartyCard from './components/WatchPartyCard';
 import WatchPartyFilters from './components/WatchPartyFilters';
 
+const toContentSummary = (content: ContentResponse): ContentSummaryResponse => ({
+  id: content.id,
+  parentContentId: content.tvSeason?.parentContentId ?? null,
+  title: content.title,
+  description: content.description,
+  type: content.type,
+  seasonNumber: content.tvSeason?.seasonNumber ?? null,
+  episodeCount: content.tvSeason?.episodeCount ?? null,
+  sportType: content.sport?.sportType.code ?? null,
+  league: content.sport?.league ?? null,
+  homeTeam: content.sport?.homeTeam ?? null,
+  awayTeam: content.sport?.awayTeam ?? null,
+  thumbnailUrl: content.thumbnailUrl,
+  releaseDate: content.releaseDate,
+  runtime: content.movie?.runtime ?? null,
+  averageRating: content.averageRating,
+  reviewCount: content.reviewCount,
+  likeCount: content.likeCount,
+  likedByMe: false,
+  genres: content.genres,
+  tags: content.tags,
+});
+
 export default function WatchPartiesPage() {
   const navigate = useNavigate();
   const authentication = useAuthStore((state) => state.data);
-  const { data, status, cursor, loading, error, setStatus, fetch, fetchMore } = useWatchPartyStore();
+  const { data, status, cursor, loading, error, setStatus, setContentIdEqual, fetchMore } = useWatchPartyStore();
+  const [searchParams] = useSearchParams();
+  const contentIdEqual = searchParams.get('contentIdEqual') || undefined;
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [initialPartyContent, setInitialPartyContent] = useState<ContentSummaryResponse | undefined>();
+  const [loadingInitialContent, setLoadingInitialContent] = useState(false);
   const [joiningPartyId, setJoiningPartyId] = useState<string | null>(null);
   const { ref: sentinelRef, inView } = useInView({ threshold: 0, rootMargin: '120px' });
 
   useEffect(() => {
-    void fetch();
-  }, [fetch]);
+    setContentIdEqual(contentIdEqual);
+  }, [contentIdEqual, setContentIdEqual]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!contentIdEqual) {
+      setInitialPartyContent(undefined);
+      setLoadingInitialContent(false);
+      return;
+    }
+    setInitialPartyContent(undefined);
+    setLoadingInitialContent(true);
+    void getContent(contentIdEqual)
+      .then((content) => {
+        if (!cancelled && (content.type === 'movie' || content.type === 'tvSeason')) {
+          setInitialPartyContent(toContentSummary(content));
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error(error);
+        setInitialPartyContent(undefined);
+        toast.error('Watch Party 생성에 사용할 콘텐츠 정보를 불러오지 못했습니다.');
+      })
+      .finally(() => { if (!cancelled) setLoadingInitialContent(false); });
+    return () => { cancelled = true; };
+  }, [contentIdEqual]);
 
   useEffect(() => {
     if (inView && cursor.hasNext && !loading) void fetchMore();
@@ -51,11 +105,16 @@ export default function WatchPartiesPage() {
     <div className="flex flex-col gap-8 px-[70px] py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
+          {contentIdEqual && (
+            <button type="button" onClick={() => navigate(`/contents/${contentIdEqual}`)} className="mb-6 flex items-center gap-2 text-body3-sb text-gray-400 transition hover:text-white">
+              <ArrowLeft className="size-4" />상세페이지
+            </button>
+          )}
           <h1 className="text-header1-b text-white">Watch Party</h1>
           <p className="mt-2 text-body3-m text-gray-400">좋아하는 콘텐츠를 다른 사용자와 함께 즐겨보세요.</p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)} className="h-11 rounded-xl bg-pink-600 px-5 text-body3-b text-white hover:bg-pink-700">
-          + 파티 만들기
+        <Button onClick={() => setCreateDialogOpen(true)} disabled={Boolean(contentIdEqual) && (loadingInitialContent || !initialPartyContent)} className="h-11 rounded-xl bg-pink-600 px-5 text-body3-b text-white hover:bg-pink-700">
+          {loadingInitialContent ? '콘텐츠 확인 중...' : '+ 파티 만들기'}
         </Button>
       </div>
 
@@ -67,7 +126,7 @@ export default function WatchPartiesPage() {
       {error && !loading && (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-red-500/20 bg-red-500/5 py-16">
           <p className="text-body2-m text-gray-300">{error}</p>
-          <Button type="button" variant="outline" onClick={() => void fetch()} className="border-gray-600 text-gray-200">다시 시도</Button>
+          <Button type="button" variant="outline" onClick={() => setContentIdEqual(contentIdEqual)} className="border-gray-600 text-gray-200">다시 시도</Button>
         </div>
       )}
 
@@ -94,6 +153,7 @@ export default function WatchPartiesPage() {
       <CreateWatchPartyDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+        initialContent={initialPartyContent}
         onCreated={(party) => navigate(`/watch-parties/${party.id}`)}
       />
     </div>

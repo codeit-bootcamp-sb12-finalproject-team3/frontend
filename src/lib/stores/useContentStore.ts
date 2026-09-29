@@ -15,12 +15,18 @@ interface ContentStore {
   cursorState: ContentCursorState;
   loading: boolean;
   error?: string;
+  scrollPosition: number;
+  shouldRestoreScroll: boolean;
   updateParams: (
     params: Partial<Omit<ContentSearchParams, 'cursor' | 'idAfter'>>,
   ) => void;
   fetch: () => Promise<void>;
   fetchMore: () => Promise<void>;
   hasNext: () => boolean;
+  saveScrollPosition: (position: number) => void;
+  markScrollRestored: () => void;
+  prepareFreshBrowse: () => void;
+  update: (id: string, data: Partial<ContentSummaryResponse>) => void;
   delete: (id: string) => void;
 }
 
@@ -40,26 +46,50 @@ const useContentStore = create<ContentStore>((set, get) => ({
   data: [],
   params: {
     limit: 20,
+    sortBy: 'latest',
   },
   cursorState: initialCursorState,
   loading: false,
   error: undefined,
+  scrollPosition: 0,
+  shouldRestoreScroll: false,
 
   updateParams: (params) => {
-    set((state) => ({ params: { ...state.params, ...params } }));
+    set((state) => ({
+      params: { ...state.params, ...params },
+      scrollPosition: 0,
+      shouldRestoreScroll: false,
+    }));
     void get().fetch();
   },
 
   fetch: async () => {
     const sequence = ++requestSequence;
-    const params = get().params;
+    const { params, data: previousData, shouldRestoreScroll } = get();
+    const targetSize = shouldRestoreScroll
+      ? Math.max(previousData.length, params.limit)
+      : params.limit;
     set({ loading: true, error: undefined, data: [], cursorState: initialCursorState });
 
     try {
-      const response = await getContents(params);
+      let response = await getContents(params);
+      let refreshedData = uniqueContents(response.data);
+      while (
+        response.hasNext
+        && response.nextCursor
+        && response.nextIdAfter
+        && refreshedData.length < targetSize
+      ) {
+        response = await getContents({
+          ...params,
+          cursor: response.nextCursor,
+          idAfter: response.nextIdAfter,
+        });
+        refreshedData = uniqueContents([...refreshedData, ...response.data]);
+      }
       if (requestSequence !== sequence) return;
       set({
-        data: uniqueContents(response.data),
+        data: refreshedData,
         cursorState: {
           nextCursor: response.nextCursor,
           nextIdAfter: response.nextIdAfter,
@@ -112,6 +142,31 @@ const useContentStore = create<ContentStore>((set, get) => ({
   },
 
   hasNext: () => get().cursorState.hasNext,
+
+  saveScrollPosition: (position) => {
+    set({ scrollPosition: Math.max(0, position), shouldRestoreScroll: true });
+  },
+
+  markScrollRestored: () => {
+    set({ shouldRestoreScroll: false });
+  },
+
+  prepareFreshBrowse: () => {
+    set({
+      data: [],
+      params: { limit: 20, sortBy: 'latest' },
+      cursorState: initialCursorState,
+      scrollPosition: 0,
+      shouldRestoreScroll: false,
+      error: undefined,
+    });
+  },
+
+  update: (id, data) => {
+    set((state) => ({
+      data: state.data.map((content) => content.id === id ? { ...content, ...data } : content),
+    }));
+  },
 
   delete: (id) => {
     set((state) => ({

@@ -15,6 +15,7 @@ interface CreateWatchPartyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (party: WatchPartyResponse) => void;
+  initialContent?: ContentSummaryResponse;
 }
 
 interface ContentPages {
@@ -45,6 +46,7 @@ export default function CreateWatchPartyDialog({
   open,
   onOpenChange,
   onCreated,
+  initialContent,
 }: CreateWatchPartyDialogProps) {
   const requestSequence = useRef(0);
   const [contents, setContents] = useState<ContentSummaryResponse[]>([]);
@@ -62,6 +64,10 @@ export default function CreateWatchPartyDialog({
   const [loadingContents, setLoadingContents] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (open && initialContent) setSelectedContent(initialContent);
+  }, [open, initialContent]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearchKeyword(searchInput.trim()), 300);

@@ -12,13 +12,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MoreVertical } from 'lucide-react';
+import { toast } from 'sonner';
 import { deleteReview } from '@/lib/api/reviews';
 import useReviewStore from '@/lib/stores/useReviewStore';
+import useContentStore from '@/lib/stores/useContentStore';
+import useContentDetailStore from '@/lib/stores/useContentDetailStore';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import type { ReviewDto } from '@/lib/types';
 import icX from '@/assets/ic_X.svg';
-import icStarFull from '@/assets/ic_star_full.svg';
 import ReviewWriteForm from './ReviewWriteForm';
+import StarRating from './StarRating';
 
 interface ReviewListDialogProps {
   open: boolean;
@@ -41,30 +44,37 @@ export default function ReviewListDialog({
     rootMargin: '100px',
   });
 
-  // 모달이 열릴 때 리뷰 데이터 fetch
   useEffect(() => {
     if (open) {
       updateParams({ contentId, limit: 20 });
     } else {
-      // 모달이 닫힐 때 view를 list로 리셋
       setView('list');
       clearData();
     }
   }, [open, contentId, updateParams, clearData]);
 
-  // useInView로 무한 스크롤 구현
   useEffect(() => {
     if (open && view === 'list' && inView && hasNext() && !loading) {
       fetchMore();
     }
   }, [open, view, inView, hasNext, loading, fetchMore]);
 
-  const handleWriteComplete = () => {
-    // 리뷰 작성 완료 후 목록으로 돌아가기
+  const refreshContentData = async () => {
+    const detailStore = useContentDetailStore.getState();
+    detailStore.updateParams({ contentId }, { autoFetch: false });
+    const results = await Promise.allSettled([
+      detailStore.fetch({ ignoreLoading: true, throwError: true }),
+      useContentStore.getState().fetch(),
+    ]);
+    if (results.some((result) => result.status === 'rejected')) {
+      toast.error('평균 평점과 리뷰 수를 새로고침하지 못했습니다.');
+    }
+  };
+
+  const handleWriteComplete = async () => {
     setView('list');
     setEditingReview(null);
-    // 리뷰 목록 새로고침
-    fetch();
+    await Promise.all([fetch(), refreshContentData()]);
   };
 
   const handleEdit = (review: ReviewDto) => {
@@ -81,13 +91,12 @@ export default function ReviewListDialog({
 
     setIsDeleting(true);
     try {
-      // 1. API 호출
       await deleteReview(deletingReviewId);
 
-      // 2. 스토어 동기화
       useReviewStore.getState().delete(deletingReviewId);
 
-      // 3. 다이얼로그 닫기
+      await refreshContentData();
+
       setDeletingReviewId(null);
     } catch (err) {
       console.error('Failed to delete review:', err);
@@ -109,7 +118,6 @@ export default function ReviewListDialog({
       >
         {view === 'list' ? (
           <>
-            {/* 헤더 */}
             <div className="flex items-center justify-between pb-6 flex-shrink-0">
               <h2 className="text-title1-sb text-gray-300">리뷰</h2>
               <DialogClose asChild>
@@ -119,7 +127,6 @@ export default function ReviewListDialog({
               </DialogClose>
             </div>
 
-            {/* 리뷰 목록 - 스크롤 영역 */}
             <div className="flex-1 overflow-y-auto min-h-0">
               {data.length === 0 && !loading ? (
                 <div className="flex items-center justify-center h-full">
@@ -147,7 +154,6 @@ export default function ReviewListDialog({
               )}
             </div>
 
-            {/* 리뷰 작성 입력창 */}
             <button
               onClick={() => setView('write')}
               className="h-[54px] w-full bg-gray-800/50 border-[1.5px] border-gray-800 rounded-xl px-5 py-3.5 flex items-center mt-6 flex-shrink-0"
@@ -174,7 +180,6 @@ export default function ReviewListDialog({
           />
         )}
 
-        {/* 삭제 확인 다이얼로그 */}
         {deletingReviewId && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
             <div className="bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4">
@@ -216,7 +221,6 @@ function ReviewItem({ review, onEdit, onDelete }: ReviewItemProps) {
   const { data: jwt } = useAuthStore();
   const isOwner = jwt?.userDto.id === review.author.userId;
 
-  // 사용자 프로필 배경색 생성 (간단한 해시 기반)
   const getProfileColor = (userId: string) => {
     const colors = ['#467db2', '#ac5959', '#7754a9', '#6e6e6e', '#5a9e6f', '#b87333'];
     const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -225,10 +229,8 @@ function ReviewItem({ review, onEdit, onDelete }: ReviewItemProps) {
 
   return (
     <div className="border-b border-[#212126] py-6 first:pt-6">
-      {/* 사용자 정보 및 별점 */}
       <div className="flex items-center justify-between mb-3.5">
         <div className="flex items-center gap-2">
-          {/* 프로필 */}
           <div className="flex items-center gap-1.5">
             <div
               className="w-[22px] h-[22px] rounded-full border border-white/10"
@@ -237,23 +239,9 @@ function ReviewItem({ review, onEdit, onDelete }: ReviewItemProps) {
             <span className="text-body2-sb text-gray-300">{review.author.name}</span>
           </div>
 
-          {/* 별점 */}
-          <div className="flex items-center">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <img
-                key={star}
-                src={icStarFull}
-                alt="star"
-                className="w-[18px] h-[18px]"
-                style={{
-                  opacity: star <= review.rating ? 1 : 0.3,
-                }}
-              />
-            ))}
-          </div>
+          <StarRating value={review.rating} />
         </div>
 
-        {/* 미트볼 메뉴 (소유자만 표시) */}
         {isOwner && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -282,7 +270,6 @@ function ReviewItem({ review, onEdit, onDelete }: ReviewItemProps) {
         )}
       </div>
 
-      {/* 리뷰 내용 */}
       <p className="text-body2-m-140 text-gray-50">{review.text}</p>
     </div>
   );
