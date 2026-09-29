@@ -80,7 +80,10 @@ export default function ContentsPage() {
   return (
     <div className="flex flex-col gap-8 px-5 py-8 sm:px-8 lg:px-10 xl:px-[54px] xl:py-10">
       {/* Page Title */}
-      <h1 className="text-header1-b text-white">콘텐츠 같이 보기</h1>
+      <div>
+        <p className="text-caption1-sb uppercase tracking-[0.12em] text-pink-300">CONTENTS</p>
+        <h1 className="mt-1 text-header1-b text-white">콘텐츠 둘러보기</h1>
+      </div>
 
       {/* Filter & Search Bar */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

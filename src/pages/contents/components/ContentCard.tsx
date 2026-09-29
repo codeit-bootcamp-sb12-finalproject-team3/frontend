@@ -199,7 +199,7 @@ export default function ContentCard({ content }: ContentCardProps) {
 
         <div className="flex min-h-[158px] flex-col p-4">
           <p className="line-clamp-2 min-h-[42px] text-body3-m-150 text-gray-300">
-            {content.description || '콘텐츠 상세 정보에서 더 많은 이야기를 확인해 보세요.'}
+            {content.description ?? ''}
           </p>
 
           <div className="mt-3 flex min-h-4 items-center gap-2 overflow-hidden text-caption1-m text-gray-400">
