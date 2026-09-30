@@ -26,7 +26,13 @@ interface RecommendationStore {
   newContents: SectionState<ContentSummaryResponse>;
   initializedUserId: string | null;
   fetchAll: (userId: string) => Promise<void>;
+  pollPersonalized: (userId: string) => Promise<PersonalizedRecommendationReadiness>;
   retry: (section: RecommendationSectionKey) => Promise<void>;
+}
+
+interface PersonalizedRecommendationReadiness {
+  contentsReady: boolean;
+  playlistsReady: boolean;
 }
 
 const initialSection = <T>(): SectionState<T> => ({
@@ -78,6 +84,40 @@ const useRecommendationStore = create<RecommendationStore>((set, get) => ({
         ? { data: newContents.value.data, loading: false }
         : { data: [], loading: false, error: errorMessage },
     });
+  },
+
+  pollPersonalized: async (userId) => {
+    const currentState = get();
+    if (currentState.initializedUserId !== userId) {
+      return { contentsReady: false, playlistsReady: false };
+    }
+
+    const shouldFetchContents = currentState.contents.data.length === 0;
+    const shouldFetchPlaylists = currentState.playlists.data.length === 0;
+
+    const [contentsResult, playlistsResult] = await Promise.allSettled([
+      shouldFetchContents ? getRecommendedContents() : undefined,
+      shouldFetchPlaylists ? getRecommendedPlaylists() : undefined,
+    ]);
+
+    if (get().initializedUserId !== userId) {
+      return { contentsReady: false, playlistsReady: false };
+    }
+
+    set((state) => ({
+      contents: shouldFetchContents && contentsResult.status === 'fulfilled'
+        ? { data: contentsResult.value?.data ?? [], loading: false }
+        : state.contents,
+      playlists: shouldFetchPlaylists && playlistsResult.status === 'fulfilled'
+        ? { data: playlistsResult.value?.data ?? [], loading: false }
+        : state.playlists,
+    }));
+
+    const updatedState = get();
+    return {
+      contentsReady: updatedState.contents.data.length > 0,
+      playlistsReady: updatedState.playlists.data.length > 0,
+    };
   },
 
   retry: async (section) => {
