@@ -10,6 +10,7 @@ import {
   getPreferenceCandidates,
   isPreferenceNotFoundError,
 } from '@/lib/api/preferences';
+import { markRecommendationPreparation } from '@/lib/recommendation-preparation';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import type { ContentSummaryResponse } from '@/lib/types';
 import PreferenceContentCard from './components/PreferenceContentCard';
@@ -76,6 +77,8 @@ export default function PreferenceSelectionPage() {
     setSubmitting(true);
     try {
       await createMyPreferences(Array.from(selectedIds));
+      const userId = authentication?.userDto.id;
+      if (userId) markRecommendationPreparation(userId);
       toast.success('취향 설정이 완료되었습니다.');
       navigate('/contents', { replace: true });
     } catch (submitError) {
