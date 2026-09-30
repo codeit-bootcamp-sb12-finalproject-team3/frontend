@@ -63,12 +63,14 @@ export interface WatchPartyChatSendRequest {
 
 export interface WatchPartyChatMessage {
   senderId: string;
+  sender?: WatchPartyHostSummary | null;
   content: string;
   sentAt: number;
 }
 
 export interface WatchPartyChatHistoryMessage {
   senderId: string;
+  sender?: WatchPartyHostSummary | null;
   content: string;
   sentAt: string | null;
 }

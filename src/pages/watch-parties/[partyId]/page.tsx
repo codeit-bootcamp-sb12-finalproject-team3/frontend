@@ -10,6 +10,7 @@ import {
   getWatchParty,
   getWatchPartyChatMessages,
   getWatchPartyParticipants,
+  joinWatchParty,
   kickWatchPartyParticipant,
   leaveWatchParty,
   startWatchParty,
@@ -19,6 +20,7 @@ import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useWatchPartyReminderStore from '@/lib/stores/useWatchPartyReminderStore';
 import type {
   WatchPartyChatMessage,
+  WatchPartyHostSummary,
   WatchPartyParticipantChangedMessage,
   WatchPartyParticipantResponse,
   WatchPartyPlaybackState,
@@ -56,7 +58,15 @@ const mergeChatMessages = (
   incoming: WatchPartyChatMessage[],
 ) => {
   const unique = new Map(current.map((message) => [chatMessageKey(message), message]));
-  incoming.forEach((message) => unique.set(chatMessageKey(message), message));
+  incoming.forEach((message) => {
+    const key = chatMessageKey(message);
+    const existing = unique.get(key);
+    unique.set(key, {
+      ...existing,
+      ...message,
+      sender: message.sender ?? existing?.sender,
+    });
+  });
   return [...unique.values()].sort((left, right) => left.sentAt - right.sentAt);
 };
 
@@ -78,6 +88,13 @@ export default function WatchPartyRoomPage() {
   const [participants, setParticipants] = useState<WatchPartyParticipantResponse[]>([]);
   const [participantsLoading, setParticipantsLoading] = useState(true);
   const [participantsError, setParticipantsError] = useState<string | null>(null);
+  const [authorsById, setAuthorsById] = useState<ReadonlyMap<string, WatchPartyHostSummary>>(
+    () => new Map(),
+  );
+  const authorsByIdRef = useRef<ReadonlyMap<string, WatchPartyHostSummary>>(new Map());
+  const [roomReady, setRoomReady] = useState(false);
+  const [roomError, setRoomError] = useState<string | null>(null);
+  const [roomAttempt, setRoomAttempt] = useState(0);
   const [kickingUserId, setKickingUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +108,19 @@ export default function WatchPartyRoomPage() {
   const historyRequestSequence = useRef(0);
   const participantsRequestSequence = useRef(0);
   const startRefreshTimer = useRef<number | null>(null);
+  const roomRequestSequence = useRef(0);
+
+  const rememberAuthors = useCallback((users: Array<WatchPartyHostSummary | null | undefined>) => {
+    const validUsers = users.filter((user): user is WatchPartyHostSummary => Boolean(user));
+    if (validUsers.length === 0) return;
+
+    setAuthorsById((current) => {
+      const next = new Map(current);
+      validUsers.forEach((user) => next.set(user.userId, user));
+      authorsByIdRef.current = next;
+      return next;
+    });
+  }, []);
 
   const loadParty = useCallback(async () => {
     if (!partyId) return;
@@ -101,6 +131,7 @@ export default function WatchPartyRoomPage() {
       const response = await getWatchParty(partyId);
       if (sequence !== requestSequence.current) return;
       setParty(response);
+      rememberAuthors([response.host]);
       if (!realtimePlaybackReceived.current) setPlayback(toPlaybackState(response));
     } catch (requestError) {
       if (sequence !== requestSequence.current) return;
@@ -109,7 +140,7 @@ export default function WatchPartyRoomPage() {
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
     }
-  }, [partyId]);
+  }, [partyId, rememberAuthors]);
 
   const loadChatHistory = useCallback(async () => {
     if (!partyId) return;
@@ -123,6 +154,7 @@ export default function WatchPartyRoomPage() {
         const sentAt = Date.parse(message.sentAt);
         return Number.isFinite(sentAt) ? [{ ...message, sentAt }] : [];
       });
+      rememberAuthors(normalized.map((message) => message.sender));
       setMessages((current) => mergeChatMessages(current, normalized));
     } catch (requestError) {
       if (sequence !== historyRequestSequence.current) return;
@@ -131,7 +163,7 @@ export default function WatchPartyRoomPage() {
     } finally {
       if (sequence === historyRequestSequence.current) setHistoryLoading(false);
     }
-  }, [partyId]);
+  }, [partyId, rememberAuthors]);
 
   const loadParticipants = useCallback(async () => {
     if (!partyId) return;
@@ -142,6 +174,7 @@ export default function WatchPartyRoomPage() {
       const response = await getWatchPartyParticipants(partyId);
       if (sequence !== participantsRequestSequence.current) return;
       setParticipants(response);
+      rememberAuthors(response.map(({ user }) => user));
     } catch (requestError) {
       if (sequence !== participantsRequestSequence.current) return;
       console.error(requestError);
@@ -149,26 +182,63 @@ export default function WatchPartyRoomPage() {
     } finally {
       if (sequence === participantsRequestSequence.current) setParticipantsLoading(false);
     }
-  }, [partyId]);
+  }, [partyId, rememberAuthors]);
 
   useEffect(() => {
     hasLeft.current = false;
     blockedNavigationInProgress.current = false;
     realtimePlaybackReceived.current = false;
+    roomRequestSequence.current += 1;
+    setRoomReady(false);
+    setRoomError(null);
     setParty(null);
     setPlayback(null);
     setMessages([]);
     setParticipants([]);
+    authorsByIdRef.current = new Map();
+    setAuthorsById(new Map());
     void loadParty();
-    void loadChatHistory();
-    void loadParticipants();
     return () => {
       requestSequence.current += 1;
       historyRequestSequence.current += 1;
       participantsRequestSequence.current += 1;
+      roomRequestSequence.current += 1;
       if (startRefreshTimer.current !== null) window.clearTimeout(startRefreshTimer.current);
     };
-  }, [loadChatHistory, loadParticipants, loadParty]);
+  }, [loadParty]);
+
+  useEffect(() => {
+    const currentUserId = authentication?.userDto.id;
+    if (!partyId || !party || party.id !== partyId || !currentUserId) return;
+
+    const sequence = ++roomRequestSequence.current;
+    setRoomReady(false);
+    setRoomError(null);
+
+    const prepareRoom = async () => {
+      try {
+        if (currentUserId !== party.host.userId) {
+          await joinWatchParty(partyId);
+        }
+        if (sequence !== roomRequestSequence.current) return;
+
+        hasLeft.current = false;
+        setRoomReady(true);
+        void loadChatHistory();
+        void loadParticipants();
+      } catch (requestError) {
+        if (sequence !== roomRequestSequence.current) return;
+        console.error(requestError);
+        setRoomReady(false);
+        setRoomError('Watch Party에 참여하지 못했습니다. 참여 상태와 정원을 확인해주세요.');
+      }
+    };
+
+    void prepareRoom();
+    return () => {
+      roomRequestSequence.current += 1;
+    };
+  }, [authentication?.userDto.id, loadChatHistory, loadParticipants, party, partyId, roomAttempt]);
 
   useEffect(() => {
     const currentUserId = authentication?.userDto.id;
@@ -181,14 +251,26 @@ export default function WatchPartyRoomPage() {
   }, []);
 
   const handleChat = useCallback((message: WatchPartyChatMessage) => {
-    setMessages((current) => mergeChatMessages(current, [message]));
-  }, []);
+    const sender = message.sender ?? authorsByIdRef.current.get(message.senderId);
+    if (sender) rememberAuthors([sender]);
+    setMessages((current) => mergeChatMessages(current, [{ ...message, sender }]));
+  }, [rememberAuthors]);
 
   const handleParticipantChanged = useCallback((message: WatchPartyParticipantChangedMessage) => {
     const currentUserId = useAuthStore.getState().data?.userDto.id;
-    if (message.status === 'KICKED' && message.userId === currentUserId) {
+    if (message.userId === currentUserId && message.status === 'KICKED') {
+      setRoomReady(false);
       hasLeft.current = true;
       toast.error('Watch Party에서 강퇴되었습니다.');
+      navigate('/watch-parties', { replace: true });
+      return;
+    }
+    if (message.userId === currentUserId && message.status === 'LEFT') {
+      setRoomReady(false);
+      if (leaveRequest.current || hasLeft.current || blockedNavigationInProgress.current) return;
+
+      hasLeft.current = true;
+      toast.info('Watch Party 참여가 종료되었습니다.');
       navigate('/watch-parties', { replace: true });
       return;
     }
@@ -200,7 +282,7 @@ export default function WatchPartyRoomPage() {
   }, []);
 
   const { connected, connecting, sendChat, controlPlayback } = useWatchPartyRealtime({
-    partyId: party?.id,
+    partyId: roomReady ? party?.id : undefined,
     accessToken: authentication?.accessToken,
     onPlayback: handlePlayback,
     onChat: handleChat,
@@ -217,6 +299,7 @@ export default function WatchPartyRoomPage() {
     setLeaving(true);
     const request = leaveWatchParty(partyId)
       .then(() => {
+        setRoomReady(false);
         hasLeft.current = true;
       })
       .finally(() => {
@@ -231,6 +314,7 @@ export default function WatchPartyRoomPage() {
     Boolean(
       party
       && !isHost
+      && roomReady
       && !hasLeft.current
       && currentLocation.pathname !== nextLocation.pathname,
     ),
@@ -291,7 +375,11 @@ export default function WatchPartyRoomPage() {
     try {
       await leaveParty();
       toast.success('Watch Party에서 퇴장했습니다.');
-      navigate('/watch-parties');
+      if (navigationBlocker.state === 'blocked') {
+        navigationBlocker.proceed();
+      } else {
+        navigate('/watch-parties');
+      }
     } catch (requestError) {
       console.error(requestError);
       toast.error('Watch Party에서 퇴장하지 못했습니다.');
@@ -331,15 +419,24 @@ export default function WatchPartyRoomPage() {
     }
   };
 
-  if (loading && !party) {
+  if ((loading && !party) || (party && !roomReady && !roomError)) {
     return <div className="flex min-h-[70vh] items-center justify-center"><LoadingSpinner /></div>;
   }
 
-  if (error || !party) {
+  if (error || roomError || !party) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 px-8">
-        <p className="text-body2-m text-gray-300">{error ?? 'Watch Party를 찾을 수 없습니다.'}</p>
-        <Button variant="outline" onClick={() => void loadParty()} className="border-gray-600 text-gray-200">다시 시도</Button>
+        <p className="text-body2-m text-gray-300">{error ?? roomError ?? 'Watch Party를 찾을 수 없습니다.'}</p>
+        <Button
+          variant="outline"
+          onClick={() => {
+            if (roomError) setRoomAttempt((current) => current + 1);
+            else void loadParty();
+          }}
+          className="border-gray-600 text-gray-200"
+        >
+          다시 시도
+        </Button>
       </div>
     );
   }
@@ -454,6 +551,7 @@ export default function WatchPartyRoomPage() {
             key={party.id}
             messages={messages}
             participants={participants}
+            authorsById={authorsById}
             host={party.host}
             currentUserId={authentication?.userDto.id}
             isHost={isHost}

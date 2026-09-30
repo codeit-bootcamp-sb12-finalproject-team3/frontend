@@ -27,6 +27,7 @@ import type {
 interface ChatPanelProps {
   messages: WatchPartyChatMessage[];
   participants: WatchPartyParticipantResponse[];
+  authorsById: ReadonlyMap<string, WatchPartyHostSummary>;
   host: WatchPartyHostSummary;
   currentUserId?: string;
   isHost: boolean;
@@ -41,6 +42,7 @@ interface ChatPanelProps {
 export default function ChatPanel({
   messages,
   participants,
+  authorsById,
   host,
   currentUserId,
   isHost,
@@ -72,6 +74,11 @@ export default function ChatPanel({
 
     return users;
   }, [host, participants]);
+
+  const activeParticipantIds = useMemo(
+    () => new Set(participants.map(({ user }) => user.userId)),
+    [participants],
+  );
 
   useEffect(() => {
     if (historyLoading) return;
@@ -146,7 +153,10 @@ export default function ChatPanel({
           </div>
         ) : (
           messages.map((message, index) => {
-            const user = usersById.get(message.senderId);
+            const user =
+              message.sender ??
+              authorsById.get(message.senderId) ??
+              usersById.get(message.senderId);
             const senderIsHost =
               message.senderId === host.userId;
             const mine =
@@ -156,7 +166,8 @@ export default function ChatPanel({
               isHost &&
               !senderIsHost &&
               !mine &&
-              Boolean(user);
+              Boolean(user) &&
+              activeParticipantIds.has(message.senderId);
 
             return (
               <div
