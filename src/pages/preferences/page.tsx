@@ -42,14 +42,14 @@ export default function PreferenceSelectionPage() {
 
   useEffect(() => {
     if (authentication?.userDto.role === 'ADMIN') {
-      navigate('/contents', { replace: true });
+      navigate('/recommendations', { replace: true });
       return;
     }
 
     const checkExistingPreference = async () => {
       try {
         await getMyPreferences();
-        navigate('/contents', { replace: true });
+        navigate('/recommendations', { replace: true });
       } catch (preferenceError) {
         if (isPreferenceNotFoundError(preferenceError)) {
           await loadCandidates();
@@ -80,7 +80,7 @@ export default function PreferenceSelectionPage() {
       const userId = authentication?.userDto.id;
       if (userId) markRecommendationPreparation(userId);
       toast.success('취향 설정이 완료되었습니다.');
-      navigate('/contents', { replace: true });
+      navigate('/recommendations', { replace: true });
     } catch (submitError) {
       console.error('Failed to create preferences:', submitError);
       toast.error('취향 설정에 실패했습니다. 잠시 후 다시 시도해 주세요.');
@@ -103,14 +103,6 @@ export default function PreferenceSelectionPage() {
           <p className="mt-3 text-body2-m text-gray-400">
             3개 이상 선택하면 취향에 맞는 콘텐츠와 플레이리스트를 추천해 드려요.
           </p>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate('/contents')}
-            className="mt-5 rounded-xl border-gray-700 bg-transparent text-gray-200 hover:bg-gray-800 hover:text-white"
-          >
-            콘텐츠 둘러보기
-          </Button>
         </div>
 
         {loading ? (

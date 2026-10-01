@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { createUser } from '@/lib/api/users';
+import { useAuthStore } from '@/lib/stores/useAuthStore';
 import type { UserCreateRequest } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ interface SignUpFormData {
 
 export default function SignUpForm() {
   const navigate = useNavigate();
+  const signIn = useAuthStore((state) => state.signIn);
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -40,8 +42,15 @@ export default function SignUpForm() {
       };
 
       await createUser(userData);
-      toast.success('회원가입이 완료되었습니다');
-      navigate('/sign-in');
+      try {
+        await signIn(data.email, data.password);
+        toast.success('회원가입이 완료되었습니다');
+        navigate('/preferences', { replace: true });
+      } catch (signInError) {
+        console.error('Failed to sign in after sign up:', signInError);
+        toast.success('회원가입이 완료되었습니다. 로그인해 주세요.');
+        navigate('/sign-in', { replace: true });
+      }
     } catch (error) {
       console.error("Fail to sign up:", error);
       toast.error('회원가입에 실패했습니다. 다시 시도해주세요.');
