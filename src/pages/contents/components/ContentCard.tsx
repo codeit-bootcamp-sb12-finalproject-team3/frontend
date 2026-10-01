@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CalendarDays, Clock3, Heart, Play, Star } from 'lucide-react';
 import type { ContentResponse, ContentSummaryResponse, ContentSummaryType } from '@/lib/types';
+import { getSportTypeLabel } from '@/lib/sport-types';
 import icMeatball from '@/assets/ic_meatball.svg';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useContentStore from '@/lib/stores/useContentStore';
@@ -145,7 +146,7 @@ export default function ContentCard({ content }: ContentCardProps) {
     ? runtime
     : content.type === 'tvSeason'
       ? [content.seasonNumber ? `시즌 ${content.seasonNumber}` : null, content.episodeCount ? `${content.episodeCount}부작` : null].filter(Boolean).join(' · ')
-      : [content.sportType, content.league].filter(Boolean).join(' · ');
+      : [content.sportType ? getSportTypeLabel(content.sportType) : null, content.league].filter(Boolean).join(' · ');
 
   return (
     <>
@@ -167,7 +168,7 @@ export default function ContentCard({ content }: ContentCardProps) {
           <img
             src={content.thumbnailUrl || '/placeholder-movie.png'}
             alt={content.title}
-            className={`h-full w-full object-cover transition duration-500 group-hover:scale-[1.04] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`h-full w-full ${content.type === 'sport' ? 'object-contain' : 'object-cover'} transition duration-500 group-hover:scale-[1.04] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={() => setImageLoaded(true)}
             onError={(event) => {
               if (!event.currentTarget.src.includes('/placeholder-movie.png')) {

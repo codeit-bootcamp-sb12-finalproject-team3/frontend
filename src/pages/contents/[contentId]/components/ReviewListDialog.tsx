@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useInView } from 'react-intersection-observer';
 import {
   Dialog,
@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical } from 'lucide-react';
+import { ArrowUp, MoreVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { deleteReview } from '@/lib/api/reviews';
 import useReviewStore from '@/lib/stores/useReviewStore';
@@ -27,17 +27,24 @@ interface ReviewListDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contentId: string;
+  selectedReview?: ReviewDto;
 }
 
 export default function ReviewListDialog({
   open,
   onOpenChange,
   contentId,
+  selectedReview,
 }: ReviewListDialogProps) {
-  const [view, setView] = useState<'list' | 'write' | 'edit'>('list');
+  const [view, setView] = useState<'list' | 'focused' | 'write' | 'edit'>(selectedReview ? 'focused' : 'list');
+  const [focusedReview, setFocusedReview] = useState<ReviewDto | null>(selectedReview ?? null);
   const [editingReview, setEditingReview] = useState<ReviewDto | null>(null);
   const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const savedListScrollTop = useRef<number | null>(null);
+  const editingFromFocused = useRef(false);
   const { data, loading, fetch, fetchMore, hasNext, updateParams, clearData } = useReviewStore();
   const { ref: sentinelRef, inView } = useInView({
     threshold: 0,
@@ -49,9 +56,18 @@ export default function ReviewListDialog({
       updateParams({ contentId, limit: 20 });
     } else {
       setView('list');
+      setShowScrollTop(false);
+      savedListScrollTop.current = null;
+      editingFromFocused.current = false;
       clearData();
     }
   }, [open, contentId, updateParams, clearData]);
+
+  useLayoutEffect(() => {
+    if (view !== 'list' || savedListScrollTop.current === null || !listScrollRef.current) return;
+    listScrollRef.current.scrollTop = savedListScrollTop.current;
+    savedListScrollTop.current = null;
+  }, [view]);
 
   useEffect(() => {
     if (open && view === 'list' && inView && hasNext() && !loading) {
@@ -71,13 +87,27 @@ export default function ReviewListDialog({
     }
   };
 
-  const handleWriteComplete = async () => {
-    setView('list');
+  const handleWriteComplete = async (savedReview: ReviewDto) => {
+    const wasEditing = view === 'edit';
+    if (wasEditing && editingFromFocused.current) {
+      setFocusedReview(savedReview);
+      setView('focused');
+    } else {
+      setView('list');
+    }
     setEditingReview(null);
-    await Promise.all([fetch(), refreshContentData()]);
+    editingFromFocused.current = false;
+    if (wasEditing) {
+      await refreshContentData();
+    } else {
+      setShowScrollTop(false);
+      await Promise.all([fetch(), refreshContentData()]);
+    }
   };
 
   const handleEdit = (review: ReviewDto) => {
+    editingFromFocused.current = view === 'focused';
+    if (!editingFromFocused.current) savedListScrollTop.current = listScrollRef.current?.scrollTop ?? 0;
     setEditingReview(review);
     setView('edit');
   };
@@ -98,6 +128,10 @@ export default function ReviewListDialog({
       await refreshContentData();
 
       setDeletingReviewId(null);
+      if (focusedReview?.id === deletingReviewId) {
+        setFocusedReview(null);
+        setView('list');
+      }
     } catch (err) {
       console.error('Failed to delete review:', err);
       alert('리뷰 삭제에 실패했습니다.');
@@ -116,18 +150,39 @@ export default function ReviewListDialog({
         hideCloseButton
         className="max-w-[1000px] h-[646px] bg-gray-800/50 backdrop-blur-[25px] border border-gray-800 rounded-3xl p-9 flex flex-col"
       >
-        {view === 'list' ? (
+        {view === 'focused' && focusedReview ? (
           <>
             <div className="flex items-center justify-between pb-6 flex-shrink-0">
               <h2 className="text-title1-sb text-gray-300">리뷰</h2>
               <DialogClose asChild>
-                <button className="w-6 h-6">
-                  <img src={icX} alt="닫기" className="w-full h-full" />
-                </button>
+                <button type="button" className="w-6 h-6"><img src={icX} alt="닫기" className="w-full h-full" /></button>
               </DialogClose>
             </div>
-
             <div className="flex-1 overflow-y-auto min-h-0">
+              <p className="text-body3-sb text-pink-300">선택한 리뷰</p>
+              <ReviewItem review={focusedReview} onEdit={handleEdit} onDelete={handleDeleteClick} />
+            </div>
+            <button type="button" onClick={() => setView('list')} className="h-[54px] w-full flex-shrink-0 rounded-xl border border-gray-700 bg-gray-800 text-body2-sb text-gray-100 hover:bg-gray-700">전체 리뷰 보기</button>
+          </>
+        ) : view === 'list' ? (
+          <>
+            <div className="flex items-center justify-between pb-6 flex-shrink-0">
+              <h2 className="text-title1-sb text-gray-300">리뷰</h2>
+              <div className="flex items-center gap-3">
+                {showScrollTop && (
+                  <button type="button" onClick={() => listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="최신 리뷰로 이동" className="flex size-8 items-center justify-center rounded-full border border-gray-600 bg-gray-700 text-gray-100 transition hover:bg-gray-600">
+                    <ArrowUp className="size-4" />
+                  </button>
+                )}
+                <DialogClose asChild>
+                  <button className="w-6 h-6">
+                    <img src={icX} alt="닫기" className="w-full h-full" />
+                  </button>
+                </DialogClose>
+              </div>
+            </div>
+
+            <div ref={listScrollRef} onScroll={(event) => setShowScrollTop(event.currentTarget.scrollTop > 120)} className="flex-1 overflow-y-auto min-h-0">
               {data.length === 0 && !loading ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-body2-m text-gray-400">아직 리뷰가 없습니다.</p>
@@ -155,7 +210,7 @@ export default function ReviewListDialog({
             </div>
 
             <button
-              onClick={() => setView('write')}
+              onClick={() => { setShowScrollTop(false); setView('write'); }}
               className="h-[54px] w-full bg-gray-800/50 border-[1.5px] border-gray-800 rounded-xl px-5 py-3.5 flex items-center mt-6 flex-shrink-0"
             >
               <span className="text-body2-m-140 text-gray-400">리뷰를 작성해주세요</span>
@@ -171,8 +226,9 @@ export default function ReviewListDialog({
           <ReviewWriteForm
             contentId={contentId}
             onCancel={() => {
-              setView('list');
+              setView(editingFromFocused.current ? 'focused' : 'list');
               setEditingReview(null);
+              editingFromFocused.current = false;
             }}
             onComplete={handleWriteComplete}
             editMode

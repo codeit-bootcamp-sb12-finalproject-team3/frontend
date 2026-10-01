@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, Clapperboard, Heart, Settings, Star } from 'lucide-react';
 import { toast } from 'sonner';
-import type { ContentResponse } from '@/lib/types';
+import type { ContentResponse, ReviewDto } from '@/lib/types';
 import { deleteContent, getContentLike, likeContent, unlikeContent } from '@/lib/api/contents';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useContentStore from '@/lib/stores/useContentStore';
@@ -12,7 +12,7 @@ import ContentFormDialog from '@/pages/contents/components/ContentFormDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import ReviewListDialog from './ReviewListDialog';
 
-interface ContentInfoProps { content: ContentResponse; }
+interface ContentInfoProps { content: ContentResponse; selectedReview?: ReviewDto; }
 
 const formatRuntime = (runtime?: number | null) => {
   if (!runtime) return '러닝타임 미정';
@@ -36,10 +36,10 @@ const formatSeasonSummary = (content: ContentResponse) => {
   return summary.length > 0 ? summary.join(' · ') : null;
 };
 
-export default function ContentInfo({ content }: ContentInfoProps) {
+export default function ContentInfo({ content, selectedReview }: ContentInfoProps) {
   const navigate = useNavigate();
   const authentication = useAuthStore((state) => state.data);
-  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(Boolean(selectedReview));
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -96,7 +96,7 @@ export default function ContentInfo({ content }: ContentInfoProps) {
   return (
     <>
       <article className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-gray-950/80 shadow-[0_24px_70px_rgba(0,0,0,0.3)]">
-        <div className="relative aspect-[16/10] overflow-hidden bg-gray-900">
+        <div className="relative aspect-[5/6] overflow-hidden bg-gray-900">
           {content.thumbnailUrl ? <img src={content.thumbnailUrl} alt={`${content.title} 포스터`} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-body2-m text-gray-500">이미지 준비 중</div>}
           <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-black/20 to-black/20" />
           <span className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-caption1-sb text-white backdrop-blur-md">{typeLabel(content)}</span>
@@ -141,7 +141,7 @@ export default function ContentInfo({ content }: ContentInfoProps) {
         </div>
       </article>
 
-      <ReviewListDialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen} contentId={content.id} />
+      <ReviewListDialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen} contentId={content.id} selectedReview={selectedReview} />
       {isAdmin && <><ContentFormDialog mode="edit" open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen} initialData={content} /><ConfirmDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen} title="콘텐츠 삭제" description={`'${content.title}'을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`} onConfirm={handleDelete} confirmText={deleting ? '삭제 중...' : '삭제'} cancelText="취소" variant="destructive" /></>}
     </>
   );

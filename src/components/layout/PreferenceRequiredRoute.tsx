@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { getMyPreferences, isPreferenceNotFoundError } from '@/lib/api/preferences';
@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/stores/useAuthStore';
 type PreferenceStatus = 'checking' | 'complete' | 'required' | 'error';
 
 export default function PreferenceRequiredRoute() {
+  const location = useLocation();
   const authentication = useAuthStore((state) => state.data);
   const [status, setStatus] = useState<PreferenceStatus>('checking');
   const [retrySequence, setRetrySequence] = useState(0);
@@ -34,7 +35,9 @@ export default function PreferenceRequiredRoute() {
     };
   }, [isAdmin, authentication?.userDto.id, retrySequence]);
 
-  if (isAdmin || status === 'complete') return <Outlet />;
+  if (isAdmin || status === 'complete' || location.pathname === '/contents') {
+    return <Outlet />;
+  }
 
   if (status === 'required') {
     return <Navigate to="/preferences" replace />;

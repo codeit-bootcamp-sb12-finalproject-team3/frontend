@@ -101,15 +101,15 @@ export default function MyReviewsSection({userId}: {userId: string}) {
         {!loading && !error && reviews.length === 0 && <p className="py-8 text-center text-body2-m text-gray-400">작성한 리뷰가 없습니다.</p>}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {reviews.map((review) => (
-            <article key={review.id} className="rounded-lg border border-gray-700 bg-gray-900 p-5">
+            <Link key={review.id} to={`/contents/${review.contentId}`} state={{selectedReview: review}} aria-label={`${titles[review.contentId] ?? '콘텐츠'}의 내 리뷰 보기`} className="block rounded-lg border border-gray-700 bg-gray-900 p-5 transition hover:border-pink-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500">
               <div className="flex items-center justify-between gap-3 mb-3">
-                <Link to={`/contents/${review.contentId}`} className="text-body1-sb text-gray-50 hover:text-primary truncate cursor-pointer">
+                <span className="text-body1-sb text-gray-50 truncate">
                   {titles[review.contentId] ?? '콘텐츠 보기'}
-                </Link>
+                </span>
                 <span className="text-body2-m text-gray-300 shrink-0">★ {review.rating.toFixed(1)}</span>
               </div>
               <p className="text-body2-m-140 text-gray-200 whitespace-pre-wrap break-words">{review.text}</p>
-            </article>
+            </Link>
           ))}
         </div>
         {error && reviews.length > 0 && <p className="mt-3 text-body2-m text-red-notification">{error}</p>}

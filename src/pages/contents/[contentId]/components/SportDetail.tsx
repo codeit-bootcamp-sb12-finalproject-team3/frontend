@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarClock, Flag, Globe2, Heart, ImageOff, MapPin, Settings, Star, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
-import type { ContentResponse } from '@/lib/types';
+import type { ContentResponse, ReviewDto } from '@/lib/types';
+import { getSportTypeLabel } from '@/lib/sport-types';
 import { deleteContent, getContentLike, likeContent, unlikeContent } from '@/lib/api/contents';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useContentStore from '@/lib/stores/useContentStore';
@@ -30,11 +31,11 @@ const formatScheduledAt = (value?: string | null) => {
   }).format(date);
 };
 
-export default function SportDetail({ content }: { content: ContentResponse }) {
+export default function SportDetail({ content, selectedReview }: { content: ContentResponse; selectedReview?: ReviewDto }) {
   const navigate = useNavigate();
   const authentication = useAuthStore((state) => state.data);
   const sport = content.sport;
-  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(Boolean(selectedReview));
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -91,6 +92,7 @@ export default function SportDetail({ content }: { content: ContentResponse }) {
 
   const homeTeam = valueOrPending(sport.homeTeam);
   const awayTeam = valueOrPending(sport.awayTeam);
+  const sportTypeLabel = getSportTypeLabel(sport.sportType.code, sport.sportType.name);
   const hasScore = sport.homeScore !== null || sport.awayScore !== null;
 
   return <>
@@ -115,7 +117,7 @@ export default function SportDetail({ content }: { content: ContentResponse }) {
           </div>
 
           <div className="flex min-w-0 flex-col justify-center p-6 sm:p-8 lg:p-10">
-            <div className="flex flex-wrap items-center gap-2 text-caption1-sb text-pink-300"><span>{sport.sportType.name}</span>{sport.league && <><span className="text-gray-700">•</span><span>{sport.league}</span></>}</div>
+            <div className="flex flex-wrap items-center gap-2 text-caption1-sb text-pink-300"><span>{sportTypeLabel}</span>{sport.league && <><span className="text-gray-700">•</span><span>{sport.league}</span></>}</div>
             <h1 className="mt-3 text-[30px] font-bold leading-tight tracking-[-0.04em] text-white sm:text-[38px]">{content.title}</h1>
             <div className="mt-4 flex items-center gap-2 text-body3-m text-gray-300"><CalendarClock className="size-[18px] text-pink-400" /><time dateTime={sport.scheduledAt || undefined}>{formatScheduledAt(sport.scheduledAt)}</time></div>
 
@@ -138,10 +140,10 @@ export default function SportDetail({ content }: { content: ContentResponse }) {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <section className="rounded-[24px] border border-white/[0.08] bg-gray-950/70 p-6 sm:p-7"><h2 className="text-title1-b text-white">경기 소개</h2><p className="mt-5 whitespace-pre-wrap text-body3-m-150 leading-7 text-gray-300">{content.description || '등록된 경기 설명이 없습니다.'}</p></section>
-        <section className="rounded-[24px] border border-white/[0.08] bg-gray-950/70 p-6 sm:p-7"><h2 className="text-title1-b text-white">경기 정보</h2><dl className="mt-5 divide-y divide-gray-800/80"><Info icon={<Trophy />} label="종목" value={sport.sportType.name} /><Info icon={<Flag />} label="리그" value={valueOrPending(sport.league)} /><Info label="시즌" value={valueOrPending(sport.season)} /><Info label="라운드" value={valueOrPending(sport.round)} /><Info icon={<CalendarClock />} label="경기 일시" value={formatScheduledAt(sport.scheduledAt)} /><Info icon={<MapPin />} label="경기장" value={valueOrPending(sport.venue)} /><Info icon={<Globe2 />} label="개최 국가" value={valueOrPending(sport.country)} /></dl></section>
+        <section className="rounded-[24px] border border-white/[0.08] bg-gray-950/70 p-6 sm:p-7"><h2 className="text-title1-b text-white">경기 정보</h2><dl className="mt-5 divide-y divide-gray-800/80"><Info icon={<Trophy />} label="종목" value={sportTypeLabel} /><Info icon={<Flag />} label="리그" value={valueOrPending(sport.league)} /><Info label="시즌" value={valueOrPending(sport.season)} /><Info label="라운드" value={valueOrPending(sport.round)} /><Info icon={<CalendarClock />} label="경기 일시" value={formatScheduledAt(sport.scheduledAt)} /><Info icon={<MapPin />} label="경기장" value={valueOrPending(sport.venue)} /><Info icon={<Globe2 />} label="개최 국가" value={valueOrPending(sport.country)} /></dl></section>
       </div>
     </div>
-    <ReviewListDialog open={reviewOpen} onOpenChange={setReviewOpen} contentId={content.id} />
+    <ReviewListDialog open={reviewOpen} onOpenChange={setReviewOpen} contentId={content.id} selectedReview={selectedReview} />
     {isAdmin && <>
       <SportFormDialog open={editOpen} onOpenChange={setEditOpen} content={content} />
       <ConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title="스포츠 콘텐츠 삭제" description={`'${content.title}'을(를) 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`} confirmText={deleting ? '삭제 중...' : '삭제'} cancelText="취소" variant="destructive" onConfirm={handleDelete} />
