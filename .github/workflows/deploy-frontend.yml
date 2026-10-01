@@ -1,0 +1,68 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  S3_BUCKET: mopl-frontend-481048606068
+  CLOUDFRONT_DISTRIBUTION_ID: E3VX8X53Z5GV7
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 최초 OIDC 확인용 - 정상 배포 확인 후 제거
+      - name: Debug OIDC claims
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com')
+            const payload = JSON.parse(
+              Buffer.from(token.split('.')[1], 'base64url').toString()
+            )
+            console.log('OIDC aud:', payload.aud)
+            console.log('OIDC sub:', payload.sub)
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::481048606068:role/mopl-github-actions-frontend
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: https://db12plwo4froe.cloudfront.net
+          VITE_REALTIME_BASE_URL: https://db12plwo4froe.cloudfront.net
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync dist/ s3://$S3_BUCKET \
+            --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id $CLOUDFRONT_DISTRIBUTION_ID \
+            --paths "/*"
