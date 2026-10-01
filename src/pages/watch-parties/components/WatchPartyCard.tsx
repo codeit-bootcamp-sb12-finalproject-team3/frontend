@@ -1,5 +1,9 @@
-import { CalendarClock, Users } from 'lucide-react';
+import { useEffect } from 'react';
+import { Bell, BellRing, CalendarClock, Users } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/lib/stores/useAuthStore';
+import useWatchPartyReminderStore from '@/lib/stores/useWatchPartyReminderStore';
 import type { WatchPartyStatus, WatchPartySummaryResponse } from '@/lib/types';
 
 const STATUS_LABELS: Record<WatchPartyStatus, string> = {
@@ -30,8 +34,38 @@ const formatScheduledAt = (value: string) =>
   }).format(new Date(value));
 
 export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCardProps) {
+  const currentUserId = useAuthStore((state) => state.data?.userDto.id);
+  const scheduledPartyIds = useWatchPartyReminderStore((state) => state.scheduledPartyIds);
+  const reminderLoaded = useWatchPartyReminderStore((state) => state.loaded);
+  const reminderLoading = useWatchPartyReminderStore((state) => state.loading);
+  const reminderMutating = useWatchPartyReminderStore((state) => state.mutatingPartyIds.has(party.id));
+  const fetchReminders = useWatchPartyReminderStore((state) => state.fetch);
+  const setReminder = useWatchPartyReminderStore((state) => state.setReminder);
+  const cancelReminder = useWatchPartyReminderStore((state) => state.cancelReminder);
   const full = party.currentParticipantCount >= party.maxParticipants;
   const ended = party.status === 'ENDED';
+  const isHost = party.host.userId === currentUserId;
+  const reminderRegistered = scheduledPartyIds.has(party.id);
+
+  useEffect(() => {
+    if (currentUserId) void fetchReminders(currentUserId);
+  }, [currentUserId, fetchReminders]);
+
+  const handleReminder = async () => {
+    if (!currentUserId || isHost || party.status !== 'SCHEDULED' || reminderMutating) return;
+    try {
+      if (reminderRegistered) {
+        await cancelReminder(currentUserId, party.id);
+        toast.success('Watch Party 알림을 해제했습니다.');
+      } else {
+        await setReminder(currentUserId, party.id);
+        toast.success('Watch Party 알림을 등록했습니다.');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(reminderRegistered ? '알림을 해제하지 못했습니다.' : '알림을 등록하지 못했습니다.');
+    }
+  };
 
   return (
     <article className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900/60 transition-colors hover:border-gray-700">
@@ -69,6 +103,18 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
             <span>{party.currentParticipantCount.toLocaleString()} / {party.maxParticipants.toLocaleString()}명</span>
           </div>
         </div>
+        {!isHost && party.status === 'SCHEDULED' && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleReminder()}
+            disabled={!currentUserId || reminderLoading || !reminderLoaded || reminderMutating}
+            className="h-10 w-full gap-2 border-gray-700 text-gray-200"
+          >
+            {reminderRegistered ? <BellRing className="size-4" /> : <Bell className="size-4" />}
+            {reminderMutating ? '처리 중...' : reminderRegistered ? '알림 받는 중' : '알림 받기'}
+          </Button>
+        )}
         <Button
           type="button"
           onClick={() => onJoin(party)}
