@@ -28,7 +28,6 @@ export default function UserProfileSection({userId}: {userId: string}) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
-  const [followId, setFollowId] = useState<string | null>(null);
 
   // Edit mode state
   type ProfileMode = 'view' | 'edit';
@@ -76,17 +75,13 @@ export default function UserProfileSection({userId}: {userId: string}) {
     try {
       if (isFollowing) {
         // Unfollow
-        if (followId) {
-          await cancelFollow(followId);
-          setIsFollowing(false);
-          setFollowId(null);
-          setFollowerCount((prev) => prev - 1);
-          toast.success('언팔로우했습니다');
-        }
+        await cancelFollow(userId);
+        setIsFollowing(false);
+        setFollowerCount((prev) => Math.max(0, prev - 1));
+        toast.success('언팔로우했습니다');
       } else {
         // Follow
-        const result = await createFollow({ followeeId: userId });
-        setFollowId(result.id);
+        await createFollow({ followeeId: userId });
         setIsFollowing(true);
         setFollowerCount((prev) => prev + 1);
         toast.success('팔로우했습니다');
@@ -126,8 +121,14 @@ export default function UserProfileSection({userId}: {userId: string}) {
     if (!file) return;
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('이미지 파일만 업로드할 수 있습니다');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('JPG, PNG, WebP 이미지만 업로드할 수 있습니다');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('프로필 이미지는 5MB 이하여야 합니다');
+      e.target.value = '';
       return;
     }
 
@@ -147,8 +148,8 @@ export default function UserProfileSection({userId}: {userId: string}) {
     if (!profile || !userId) return;
 
     // Validate name
-    if (editName.trim().length < 2) {
-      toast.error('이름은 최소 2자 이상이어야 합니다');
+    if (editName.trim().length === 0 || editName.trim().length > 50) {
+      toast.error('이름은 1~50자여야 합니다');
       return;
     }
 
@@ -167,7 +168,7 @@ export default function UserProfileSection({userId}: {userId: string}) {
       // Sync auth store if editing own profile
       if (isOwnProfile && jwt) {
         useAuthStore.getState().update({
-          userDto: updatedUser,
+          userDto: { ...jwt.userDto, ...updatedUser },
         });
       }
 
@@ -189,24 +190,49 @@ export default function UserProfileSection({userId}: {userId: string}) {
 
   // Fetch follow status and follower count
   useEffect(() => {
-    if (!userId || isOwnProfile) return;
+    let cancelled = false;
+
+    setIsFollowing(false);
+    setFollowerCount(0);
+
+    if (!userId || !jwt) {
+      return () => {
+        cancelled = true;
+      };
+    }
 
     const fetchFollowStatus = async () => {
       try {
+        if (jwt.userDto.id === userId) {
+          const count = await getFollowerCount(userId);
+          if (!cancelled) {
+            setFollowerCount(count);
+          }
+          return;
+        }
+
         const [follow, count] = await Promise.all([
           isFollowedByMe(userId),
           getFollowerCount(userId),
         ]);
-        setIsFollowing(follow !== null);
-        setFollowId(follow?.id ?? null);
-        setFollowerCount(count);
+
+        if (!cancelled) {
+          setIsFollowing(follow !== null);
+          setFollowerCount(count);
+        }
       } catch (error) {
-        console.error('Failed to fetch follow status:', error);
+        if (!cancelled) {
+          console.error('Failed to fetch follow status:', error);
+        }
       }
     };
 
-    fetchFollowStatus();
-  }, [userId, isOwnProfile]);
+    void fetchFollowStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, jwt]);
 
   // Handle send message (placeholder)
   const handleSendMessage = () => {
@@ -293,7 +319,7 @@ export default function UserProfileSection({userId}: {userId: string}) {
                     <div className="flex items-center gap-[10px]">
                       <Button
                           onClick={handleSaveProfile}
-                          disabled={isUpdating || editName.trim().length < 2}
+                          disabled={isUpdating || editName.trim().length === 0 || editName.trim().length > 50}
                           className="h-[34px] px-3 bg-pink-500 hover:bg-pink-600 disabled:bg-gray-800 disabled:text-gray-600"
                       >
                       <span className="text-body3-b text-white">

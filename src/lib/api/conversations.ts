@@ -9,9 +9,9 @@
 
 import apiClient from './client';
 import type {
-  ConversationDto,
+  ConversationResponseDto,
   ConversationCreateRequest,
-  CursorResponseConversationDto,
+  CursorResponseConversationListResponse,
   CursorResponseDirectMessageDto,
   FindConversationsParams,
   FindDmsParams,
@@ -28,8 +28,8 @@ import type {
  */
 export const getConversations = async (
   params?: FindConversationsParams,
-): Promise<CursorResponseConversationDto> => {
-  const response = await apiClient.get<CursorResponseConversationDto>('/api/conversations', {
+): Promise<CursorResponseConversationListResponse> => {
+  const response = await apiClient.get<CursorResponseConversationListResponse>('/api/conversations', {
     params,
   });
   return response.data;
@@ -39,13 +39,17 @@ export const getConversations = async (
  * Create conversation (대화 생성)
  * POST /api/conversations
  *
- * @param data - Conversation creation data (withUserId)
+ * @param data - Conversation creation data (peerId)
+ * @param signal - Optional signal for cancelling the request
  * @returns Created conversation information
  */
 export const createConversation = async (
   data: ConversationCreateRequest,
-): Promise<ConversationDto> => {
-  const response = await apiClient.post<ConversationDto>('/api/conversations', data);
+  signal?: AbortSignal,
+): Promise<ConversationResponseDto> => {
+  const response = await apiClient.post<ConversationResponseDto>('/api/conversations', data, {
+    signal,
+  });
   return response.data;
 };
 
@@ -72,38 +76,18 @@ export const getDirectMessages = async (
 
 /**
  * Mark direct message as read (DM 읽음 처리)
- * POST /api/conversations/{conversationId}/direct-messages/{directMessageId}/read
+ * POST /api/conversations/{conversationId}/read
  *
  * @param conversationId - Conversation ID
- * @param directMessageId - Direct message ID to mark as read
+ * @param lastReadMessageId - Last direct message ID read by the requester
  */
 export const markDirectMessageAsRead = async (
   conversationId: string,
-  directMessageId: string,
+  lastReadMessageId: string,
 ): Promise<void> => {
-  await apiClient.post(
-    `/api/conversations/${conversationId}/direct-messages/${directMessageId}/read`,
-  );
-};
-
-/**
- * Get conversations with specific user (특정 사용자와의 대화 조회)
- * GET /api/conversations/with
- *
- * @param userId - Query parameters for specific user ID
- * @returns ConversationDto or 404 error if not found
- *
- * Note: Only returns requester's conversations
- */
-export const getConversationWithUser = async (
-    userId: string,
-): Promise<ConversationDto> => {
-  const response = await apiClient.get<ConversationDto>('/api/conversations/with', {
-    params: {
-      userId,
-    },
+  await apiClient.post(`/api/conversations/${conversationId}/read`, {
+    lastReadMessageId,
   });
-  return response.data;
 };
 
 /**
@@ -117,7 +101,7 @@ export const getConversationWithUser = async (
  */
 export const getConversationById = async (
     conversationId: string,
-): Promise<ConversationDto> => {
-  const response = await apiClient.get<ConversationDto>(`/api/conversations/${conversationId}`);
+): Promise<ConversationResponseDto> => {
+  const response = await apiClient.get<ConversationResponseDto>(`/api/conversations/${conversationId}`);
   return response.data;
 };

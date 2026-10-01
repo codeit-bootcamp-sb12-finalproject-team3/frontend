@@ -34,5 +34,8 @@ export * from './notifications';
 // Export watching sessions API
 export * from './watching-sessions';
 
+// Export Watch Party API
+export * from './watch-parties';
+
 // Re-export commonly used types for convenience
 export type { CursorParams, CursorResponse, SortDirection } from '@/lib/types';

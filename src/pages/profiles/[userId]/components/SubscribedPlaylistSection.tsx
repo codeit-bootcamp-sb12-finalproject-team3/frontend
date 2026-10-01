@@ -1,7 +1,7 @@
 import PlaylistCardSkeleton from "@/pages/profiles/[userId]/components/PlaylistCardSkeleton.tsx";
 import PlaylistCard from "@/pages/playlists/components/PlaylistCard.tsx";
 import usePlaylistSubscriptionStore from "@/lib/stores/usePlaylistSubscriptionStore.ts";
-import {useCallback, useEffect, useRef} from "react";
+import {useEffect, useRef} from "react";
 
 export default function SubscribedPlaylistSection({userId}: {userId: string}) {
 
@@ -19,7 +19,7 @@ export default function SubscribedPlaylistSection({userId}: {userId: string}) {
   const subscribedPlaylistsTotal = subscribedPlaylistsCount();
 
   // Refs for infinite scroll
-  const subscribedPlaylistsScrollRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Fetch subscribed playlists
   useEffect(() => {
@@ -34,39 +34,25 @@ export default function SubscribedPlaylistSection({userId}: {userId: string}) {
     };
   }, [userId, updateSubscribedPlaylistsParams, clearSubscribedPlaylists]);
 
-  // Infinite scroll handler for subscribed playlists
-  const handleSubscribedPlaylistsScroll = useCallback(() => {
-    const container = subscribedPlaylistsScrollRef.current;
-    if (!container) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const scrolledToBottom = scrollHeight - scrollTop - clientHeight < 100;
-
-    if (scrolledToBottom && hasNextSubscribedPlaylists() && !subscribedPlaylistsLoading) {
-      fetchMoreSubscribedPlaylists();
-    }
-  }, [hasNextSubscribedPlaylists, subscribedPlaylistsLoading, fetchMoreSubscribedPlaylists]);
-
+  // Observe the end of the list as the page itself scrolls.
   useEffect(() => {
-    const subscribedContainer = subscribedPlaylistsScrollRef.current;
-    if (subscribedContainer) {
-      subscribedContainer.addEventListener('scroll', handleSubscribedPlaylistsScroll);
-      return () => subscribedContainer.removeEventListener('scroll', handleSubscribedPlaylistsScroll);
-    }
-  }, [handleSubscribedPlaylistsScroll]);
+    const target = loadMoreRef.current;
+    if (!target || !hasNextSubscribedPlaylists() || subscribedPlaylistsLoading) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && hasNextSubscribedPlaylists() && !subscribedPlaylistsLoading) {
+        void fetchMoreSubscribedPlaylists();
+      }
+    }, {root: null, rootMargin: '200px'});
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasNextSubscribedPlaylists, subscribedPlaylistsLoading, fetchMoreSubscribedPlaylists, subscribedPlaylists.length]);
 
   return (
       <>
         {/* Subscribed Playlists Section */}
         <section>
-          <div className="flex items-center gap-2 mb-[20px]">
-            <h2 className="text-header1-sb text-gray-50">구독 중인 플레이리스트</h2>
-            <span className="text-header1-sb text-gray-500">{subscribedPlaylistsTotal}</span>
-          </div>
-
           <div
-              ref={subscribedPlaylistsScrollRef}
-              className="h-[300px] py-1 pl-2 overflow-y-auto overflow-x-hidden pr-2 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900"
+                className="py-1 pl-2 pr-2"
           >
             {subscribedPlaylistsLoading && subscribedPlaylists.length === 0 ? (
                 <div className="grid sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-x-[30px] gap-y-[40px]">
@@ -93,6 +79,7 @@ export default function SubscribedPlaylistSection({userId}: {userId: string}) {
                 </div>
             )}
           </div>
+          <div ref={loadMoreRef} aria-hidden="true" className="h-px" />
         </section>
       </>
   )

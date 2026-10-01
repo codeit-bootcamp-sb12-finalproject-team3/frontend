@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button';
-import type { PlaylistDto } from '@/lib/types';
+import type { PlaylistDetail } from '@/lib/types';
 
 interface PlaylistActionsProps {
-  playlist: PlaylistDto;
+  playlist: PlaylistDetail;
   isOwner: boolean;
   isEditMode: boolean;
   onEdit: () => void;
@@ -10,6 +10,7 @@ interface PlaylistActionsProps {
   onCancel: () => void;
   onDelete: () => void;
   onSubscribe: () => Promise<void>;
+  subscriptionLoading: boolean;
 }
 
 export default function PlaylistActions({
@@ -21,19 +22,21 @@ export default function PlaylistActions({
   onCancel,
   onDelete,
   onSubscribe,
+  subscriptionLoading,
 }: PlaylistActionsProps) {
   if (!isOwner) {
     // Non-owner: Show subscribe button
     return (
       <Button
         onClick={onSubscribe}
+        disabled={subscriptionLoading}
         className={
           playlist.subscribedByMe
             ? 'bg-gray-700 hover:bg-gray-600 text-white text-body3-b px-3 py-2 h-[34px] rounded-lg'
             : 'bg-pink-600 hover:bg-pink-700 text-white text-body3-b px-3 py-2 h-[34px] rounded-lg'
         }
       >
-        {playlist.subscribedByMe ? '구독 중' : '구독'}
+        {subscriptionLoading ? '처리 중...' : playlist.subscribedByMe ? '구독 중' : '구독'}
       </Button>
     );
   }

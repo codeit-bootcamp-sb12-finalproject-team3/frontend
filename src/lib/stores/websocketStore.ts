@@ -1,6 +1,8 @@
 import { Client, type StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { create } from 'zustand';
+import { REALTIME_BASE_URL } from '@/lib/config/environment';
+import { useAuthStore } from '@/lib/stores/useAuthStore';
 
 interface WebSocketState {
   stompClient: Client | null;
@@ -9,9 +11,9 @@ interface WebSocketState {
   subscriptions: Map<string, StompSubscription>;
   connect: (accessToken: string) => Promise<void>;
   disconnect: () => void;
-  subscribe: (destination: string, callback: (message: any) => void) => void;
+  subscribe: <T>(destination: string, callback: (message: T) => void) => void;
   unsubscribe: (destination: string) => void;
-  send: (destination: string, body: any) => void;
+  send: (destination: string, body: unknown) => void;
 }
 
 export const useWebSocketStore = create<WebSocketState>((set, get) => ({
@@ -26,86 +28,96 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
 
     set({ isConnecting: true });
 
-    const BASE_URL = import.meta.env.VITE_PUBLIC_PATH || '';
-    const socket = new SockJS(`${BASE_URL}/ws`);
-    const client = new Client({
-      webSocketFactory: () => socket,
-      connectHeaders: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      debug: (str) => {
-        console.log(str);
-      },
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
+    return new Promise<void>((resolve, reject) => {
+      let initialConnectionSettled = false;
+      const client = new Client({
+        webSocketFactory: () => new SockJS(`${REALTIME_BASE_URL}/ws`),
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+      });
+
+      client.beforeConnect = () => {
+        const currentAccessToken = useAuthStore.getState().getAccessToken() || accessToken;
+        client.connectHeaders = {
+          Authorization: `Bearer ${currentAccessToken}`,
+        };
+      };
+
+      client.onConnect = () => {
+        set({ stompClient: client, isConnected: true, isConnecting: false });
+        if (!initialConnectionSettled) {
+          initialConnectionSettled = true;
+          resolve();
+        }
+      };
+
+      client.onStompError = (frame) => {
+        console.error('STOMP error:', frame);
+        set({ isConnected: false, isConnecting: false });
+        if (!initialConnectionSettled) {
+          initialConnectionSettled = true;
+          reject(new Error(frame.headers.message || 'STOMP connection failed.'));
+        }
+      };
+
+      client.onWebSocketClose = () => {
+        set({ isConnected: false, isConnecting: client.active });
+        if (!initialConnectionSettled) {
+          initialConnectionSettled = true;
+          reject(new Error('WebSocket closed before STOMP connected.'));
+        }
+      };
+
+      set({ stompClient: client });
+      client.activate();
     });
-
-    client.onConnect = () => {
-      set({ stompClient: client, isConnected: true, isConnecting: false });
-      console.log('WebSocket 연결 성공');
-    };
-
-    client.onStompError = (frame) => {
-      console.error('STOMP 에러:', frame);
-      set({ isConnected: false, stompClient: null, isConnecting: false });
-    };
-
-    client.onWebSocketClose = () => {
-      set({ isConnected: false, stompClient: null, isConnecting: false });
-    };
-
-    client.activate();
   },
 
   disconnect: () => {
-    const { stompClient, isConnected } = get();
-    if (stompClient && isConnected) {
-      stompClient.deactivate();
-      set({ stompClient: null, isConnected: false, subscriptions: new Map() });
+    const { stompClient } = get();
+    if (stompClient) {
+      void stompClient.deactivate();
+      set({
+        stompClient: null,
+        isConnected: false,
+        isConnecting: false,
+        subscriptions: new Map(),
+      });
     }
   },
 
-  subscribe: (destination: string, callback: <T>(message: T) => void) => {
+  subscribe: <T>(destination: string, callback: (message: T) => void) => {
     const { stompClient, isConnected, subscriptions } = get();
+    if (subscriptions.has(destination) || !isConnected || !stompClient) return;
 
-    if (subscriptions.has(destination) || !isConnected || stompClient == null) {
-      return;
-    }
-
-    const subscription: StompSubscription = stompClient.subscribe(destination, (message) => {
-      const payload = JSON.parse(message.body);
-      callback(payload);
+    const subscription = stompClient.subscribe(destination, (message) => {
+      callback(JSON.parse(message.body) as T);
     });
 
-    subscriptions.set(destination, subscription);
+    const nextSubscriptions = new Map(subscriptions);
+    nextSubscriptions.set(destination, subscription);
+    set({ subscriptions: nextSubscriptions });
   },
 
   unsubscribe: (destination: string) => {
-    const { stompClient, isConnected, subscriptions } = get();
+    const { subscriptions } = get();
+    const subscription = subscriptions.get(destination);
+    if (!subscription) return;
 
-    if (!subscriptions.has(destination) || !isConnected || stompClient == null) {
+    subscription.unsubscribe();
+    const nextSubscriptions = new Map(subscriptions);
+    nextSubscriptions.delete(destination);
+    set({ subscriptions: nextSubscriptions });
+  },
+
+  send: (destination: string, body: unknown) => {
+    const { stompClient, isConnected } = get();
+    if (!stompClient || !isConnected) {
+      console.error('WebSocket is not connected.');
       return;
     }
 
-    const subscription = subscriptions.get(destination);
-    if (subscription) {
-      subscription.unsubscribe();
-      subscriptions.delete(destination);
-      set({ subscriptions });
-    }
-  },
-
-  send: (destination: string, body: any) => {
-    const { stompClient, isConnected } = get();
-
-    if (stompClient && isConnected) {
-      stompClient.publish({
-        destination,
-        body: JSON.stringify(body),
-      });
-    } else {
-      console.error('WebSocket이 연결되어 있지 않습니다.');
-    }
+    stompClient.publish({ destination, body: JSON.stringify(body) });
   },
 }));

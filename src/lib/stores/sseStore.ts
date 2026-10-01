@@ -1,14 +1,22 @@
-import {EventSourcePolyfill} from 'event-source-polyfill';
-import {create} from 'zustand';
+import { EventSourcePolyfill } from 'event-source-polyfill';
+import { create } from 'zustand';
+import { REALTIME_BASE_URL } from '@/lib/config/environment';
+
+type SseCallback = (data: unknown) => void;
+
+let pendingConnection: Promise<void> | null = null;
+let rejectPendingConnection: ((reason: Error) => void) | null = null;
+let connectionHeaders: Record<string, string> | null = null;
 
 interface SseState {
   eventSource: EventSource | null;
   isConnected: boolean;
   isConnecting: boolean;
-  subscriptions: Map<string, (data: any) => void>;
+  subscriptions: Map<string, SseCallback>;
   connect: (accessToken: string) => Promise<void>;
   disconnect: () => void;
-  subscribe: (topic: string, callback: (data: any) => void) => void;
+  updateAccessToken: (accessToken: string) => void;
+  subscribe: <T>(topic: string, callback: (data: T) => void) => void;
   unsubscribe: (topic: string) => void;
 }
 
@@ -18,93 +26,127 @@ export const useSseStore = create<SseState>((set, get) => ({
   isConnecting: false,
   subscriptions: new Map(),
 
-  connect: async (accessToken: string) => {
+  connect: (accessToken: string) => {
     const { isConnected, isConnecting } = get();
-    if (isConnected || isConnecting) return;
+    if (isConnected) return Promise.resolve();
+    if (pendingConnection) return pendingConnection;
+    if (isConnecting) {
+      return Promise.reject(new Error('SSE connection is already retrying.'));
+    }
 
     set({ isConnecting: true });
 
-    try {
-      console.log('[SSE] Try to connect');
-      const BASE_URL = import.meta.env.VITE_PUBLIC_PATH || '';
-      const eventSource = new EventSourcePolyfill(`${BASE_URL}/api/sse`, {
-        headers: {
+    const connection = new Promise<void>((resolve, reject) => {
+      rejectPendingConnection = reject;
+
+      try {
+        connectionHeaders = {
           Authorization: `Bearer ${accessToken}`,
-        },
-        withCredentials: true,
-      });
-
-      eventSource.onopen = () => {
-        set({ eventSource, isConnected: true, isConnecting: false });
-        console.log('[SSE] Connected');
-      };
-
-      eventSource.onerror = (error) => {
-        console.error('[SSE] Error:', { error, readyState: eventSource.readyState });
-        set({
-          isConnected: false,
-          isConnecting: eventSource.readyState === EventSourcePolyfill.CONNECTING,
-          eventSource: null,
+        };
+        const eventSource = new EventSourcePolyfill(`${REALTIME_BASE_URL}/api/sse`, {
+          headers: connectionHeaders,
+          withCredentials: true,
         });
-      };
-      set({ eventSource, isConnected: true, isConnecting: false });
-    } catch (error) {
-      console.error('SSE 연결 시도 중 에러:', error);
-      set({ isConnected: false, isConnecting: false, eventSource: null });
-    }
+
+        let initialConnectionSettled = false;
+
+        eventSource.onopen = () => {
+          set({ eventSource, isConnected: true, isConnecting: false });
+          if (!initialConnectionSettled) {
+            initialConnectionSettled = true;
+            resolve();
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          console.error('[SSE] connection error:', error);
+          const isClosed = eventSource.readyState === EventSourcePolyfill.CLOSED;
+          set({
+            isConnected: false,
+            isConnecting: !isClosed,
+            eventSource: isClosed ? null : eventSource,
+          });
+
+          if (!initialConnectionSettled) {
+            initialConnectionSettled = true;
+            reject(new Error('Initial SSE connection failed.'));
+          }
+        };
+
+        get().subscriptions.forEach((callback, topic) => {
+          eventSource.addEventListener(topic, callback);
+        });
+
+        set({ eventSource });
+      } catch (error) {
+        console.error('[SSE] failed to create connection:', error);
+        set({ isConnected: false, isConnecting: false, eventSource: null });
+        reject(error instanceof Error ? error : new Error('Failed to create SSE connection.'));
+      }
+    });
+
+    pendingConnection = connection;
+    const clearPendingConnection = () => {
+      if (pendingConnection === connection) {
+        pendingConnection = null;
+        rejectPendingConnection = null;
+      }
+    };
+    void connection.then(clearPendingConnection, clearPendingConnection);
+
+    return connection;
   },
 
   disconnect: () => {
-    const { eventSource, isConnected, subscriptions } = get();
-    if (eventSource && isConnected) {
-      // 모든 구독 해제
-      subscriptions.forEach((callback, topic) => {
-        eventSource.removeEventListener(topic, callback);
-      });
-      eventSource.close();
-      set({ eventSource: null, isConnected: false });
-    }
+    const { eventSource, subscriptions } = get();
+    connectionHeaders = null;
+    if (!eventSource) return;
+
+    rejectPendingConnection?.(new Error('SSE connection was disconnected.'));
+    subscriptions.forEach((callback, topic) => {
+      eventSource.removeEventListener(topic, callback);
+    });
+    eventSource.close();
+    set({ eventSource: null, isConnected: false, isConnecting: false });
   },
 
-  subscribe: (topic, callback) => {
-    const { eventSource, isConnected, subscriptions } = get();
+  updateAccessToken: (accessToken: string) => {
+    if (!connectionHeaders) return;
 
-    if (subscriptions.has(topic)) {
-      console.log('[SSE] Already subscribed', topic);
-      return;
-    }
+    // event-source-polyfill reads this same object again for each automatic reconnect.
+    connectionHeaders.Authorization = `Bearer ${accessToken}`;
+  },
 
-    // 구독 정보 저장
-    const wrappedCallback = (event: MessageEvent) => {
+  subscribe: <T>(topic: string, callback: (data: T) => void) => {
+    const { eventSource, subscriptions } = get();
+    if (subscriptions.has(topic)) return;
+
+    const wrappedCallback = ((event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data);
-        callback(data);
+        callback(JSON.parse(event.data) as T);
       } catch (error) {
-        console.error('[SSE] Message parsing error:', error);
-        callback(event.data); // JSON 파싱 실패시 원본 데이터 전달
+        console.error('[SSE] message parsing error:', error);
+        callback(event.data as T);
       }
-    };
+    }) as SseCallback;
 
-    if (eventSource && isConnected) {
-      console.log('[SSE] Subscribed', topic);
+    const nextSubscriptions = new Map(subscriptions);
+    nextSubscriptions.set(topic, wrappedCallback);
+    set({ subscriptions: nextSubscriptions });
+
+    if (eventSource) {
       eventSource.addEventListener(topic, wrappedCallback);
-
-      subscriptions.set(topic, wrappedCallback);
-      set({ subscriptions });
     }
   },
 
-  unsubscribe: (topic) => {
-    const { eventSource, isConnected, subscriptions } = get();
+  unsubscribe: (topic: string) => {
+    const { eventSource, subscriptions } = get();
+    const callback = subscriptions.get(topic);
+    if (!callback) return;
 
-    if (eventSource && isConnected) {
-      const callback = subscriptions.get(topic);
-      if (callback) {
-        eventSource.removeEventListener(topic, callback);
-      }
-    }
-
-    subscriptions.delete(topic);
-    set({ subscriptions });
+    eventSource?.removeEventListener(topic, callback);
+    const nextSubscriptions = new Map(subscriptions);
+    nextSubscriptions.delete(topic);
+    set({ subscriptions: nextSubscriptions });
   },
 }));

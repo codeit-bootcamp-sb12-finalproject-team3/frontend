@@ -9,39 +9,171 @@
 
 import apiClient from './client';
 import type {
-  ContentDto,
+  ContentCreateResponse,
+  ContentResponse,
+  ContentLikeResponse,
+  ContentPlatformResponse,
+  ContentPlatformCatalogItem,
+  ContentPlaylistResponse,
+  ContentWatchPartyResponse,
   ContentCreateRequest,
+  ContentGenre,
+  ContentSearchParams,
+  ContentAutocompleteResponse,
+  ContentSportType,
+  ContentSeriesSearchResponse,
   ContentUpdateRequest,
-  CursorResponseContentDto,
-  FindContentsParams,
+  CursorResponseContentSummary,
+  EpisodeResponse,
+  EpisodeCreateRequest,
+  EpisodeUpdateRequest,
 } from '@/lib/types';
 
+export const getContentAutocomplete = async (
+  query: string,
+  signal?: AbortSignal,
+): Promise<ContentAutocompleteResponse> => {
+  const response = await apiClient.get<ContentAutocompleteResponse>('/api/search/contents/autocomplete', {
+    params: { query: query.trim() },
+    signal,
+  });
+  return response.data;
+};
+
 /**
- * Get contents list with cursor pagination (콘텐츠 목록 조회)
+ * Get contents list with cursor pagination
  * GET /api/contents
  *
  * @param params - Query parameters for filtering, sorting, and pagination
  * @returns Paginated list of contents
  */
-export const getContents = async (params?: FindContentsParams): Promise<CursorResponseContentDto> => {
-  const response = await apiClient.get<CursorResponseContentDto>('/api/contents', { params });
+export const getContents = async (
+  params: ContentSearchParams,
+): Promise<CursorResponseContentSummary> => {
+  const response = await apiClient.get<CursorResponseContentSummary>('/api/contents', {
+    params,
+  });
+  return response.data;
+};
+
+export const getContentGenres = async (
+  type: 'movie' | 'tvSeries',
+): Promise<ContentGenre[]> => {
+  const response = await apiClient.get<ContentGenre[]>('/api/contents/genres', {
+    params: { type },
+  });
+  return response.data;
+};
+
+export const getContentSportTypes = async (): Promise<ContentSportType[]> => {
+  const response = await apiClient.get<ContentSportType[]>('/api/contents/sport-types');
+  return response.data;
+};
+
+export const searchContentSeriesForAdmin = async (query: string, signal?: AbortSignal): Promise<ContentSeriesSearchResponse> => {
+  const response = await apiClient.get<ContentSeriesSearchResponse>('/api/admin/content-series', {
+    params: { query: query.trim() },
+    signal,
+  });
   return response.data;
 };
 
 /**
- * Get single content (콘텐츠 단건 조회)
+ * Get single content
  * GET /api/contents/{contentId}
  *
  * @param contentId - Content ID to retrieve
  * @returns Content information
  */
-export const getContent = async (contentId: string): Promise<ContentDto> => {
-  const response = await apiClient.get<ContentDto>(`/api/contents/${contentId}`);
+export const getContent = async (contentId: string): Promise<ContentResponse> => {
+  const response = await apiClient.get<ContentResponse>(`/api/contents/${contentId}`);
+  return response.data;
+};
+
+export const getContentEpisodes = async (seasonId: string): Promise<EpisodeResponse[]> => {
+  const response = await apiClient.get<EpisodeResponse[]>(`/api/contents/${seasonId}/episodes`);
+  return response.data;
+};
+
+export const getContentEpisode = async (seasonId: string, episodeId: string): Promise<EpisodeResponse> => {
+  const response = await apiClient.get<EpisodeResponse>(`/api/contents/${seasonId}/episodes/${episodeId}`);
+  return response.data;
+};
+
+export const createContentEpisode = async (
+  seasonId: string,
+  data: EpisodeCreateRequest,
+  thumbnail?: File,
+): Promise<EpisodeResponse> => {
+  const formData = new FormData();
+  formData.append('request', new Blob([JSON.stringify(data)], { type: 'application/json' }));
+  if (thumbnail) formData.append('thumbnail', thumbnail);
+  const response = await apiClient.post<EpisodeResponse>(
+    `/api/contents/${seasonId}/episodes`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data;
+};
+
+export const updateContentEpisode = async (
+  seasonId: string,
+  episodeId: string,
+  data: EpisodeUpdateRequest,
+  thumbnail?: File,
+): Promise<EpisodeResponse> => {
+  const formData = new FormData();
+  formData.append('request', new Blob([JSON.stringify(data)], { type: 'application/json' }));
+  if (thumbnail) formData.append('thumbnail', thumbnail);
+  const response = await apiClient.patch<EpisodeResponse>(
+    `/api/contents/${seasonId}/episodes/${episodeId}`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data;
+};
+
+export const deleteContentEpisode = async (seasonId: string, episodeId: string): Promise<void> => {
+  await apiClient.delete(`/api/contents/${seasonId}/episodes/${episodeId}`);
+};
+
+export const getContentLike = async (contentId: string): Promise<ContentLikeResponse> => {
+  const response = await apiClient.get<ContentLikeResponse>(`/api/contents/${contentId}/likes`);
+  return response.data;
+};
+
+export const likeContent = async (contentId: string): Promise<ContentLikeResponse> => {
+  const response = await apiClient.put<ContentLikeResponse>(`/api/contents/${contentId}/likes`);
+  return response.data;
+};
+
+export const unlikeContent = async (contentId: string): Promise<ContentLikeResponse> => {
+  const response = await apiClient.delete<ContentLikeResponse>(`/api/contents/${contentId}/likes`);
+  return response.data;
+};
+
+export const getContentPlatforms = async (contentId: string): Promise<ContentPlatformResponse> => {
+  const response = await apiClient.get<ContentPlatformResponse>(`/api/contents/${contentId}/ott`);
+  return response.data;
+};
+
+export const getContentPlatformCatalog = async (): Promise<ContentPlatformCatalogItem[]> => {
+  const response = await apiClient.get<ContentPlatformCatalogItem[]>('/api/contents/platforms');
+  return response.data;
+};
+
+export const getContentPlaylists = async (contentId: string): Promise<ContentPlaylistResponse> => {
+  const response = await apiClient.get<ContentPlaylistResponse>(`/api/contents/${contentId}/playlists`);
+  return response.data;
+};
+
+export const getContentWatchParties = async (contentId: string): Promise<ContentWatchPartyResponse> => {
+  const response = await apiClient.get<ContentWatchPartyResponse>(`/api/contents/${contentId}/watch-parties`);
   return response.data;
 };
 
 /**
- * Create content (콘텐츠 생성)
+ * Create content
  * POST /api/contents
  *
  * @param data - Content data
@@ -52,8 +184,11 @@ export const getContent = async (contentId: string): Promise<ContentDto> => {
  */
 export const createContent = async (
   data: ContentCreateRequest,
-  thumbnail: File,
-): Promise<ContentDto> => {
+  thumbnail?: File,
+  namedThumbnails?: Record<string, File>,
+): Promise<ContentCreateResponse> => {
+
+  console.log('CONTENT CREATE REQUEST:', data);
   const formData = new FormData();
 
   // Append request data as JSON blob
@@ -62,10 +197,10 @@ export const createContent = async (
     new Blob([JSON.stringify(data)], { type: 'application/json' }),
   );
 
-  // Append thumbnail (required)
-  formData.append('thumbnail', thumbnail);
+  if (thumbnail) formData.append('thumbnail', thumbnail);
+  Object.entries(namedThumbnails ?? {}).forEach(([name, file]) => formData.append(name, file));
 
-  const response = await apiClient.post<ContentDto>('/api/contents', formData, {
+  const response = await apiClient.post<ContentCreateResponse>('/api/contents', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -75,7 +210,7 @@ export const createContent = async (
 };
 
 /**
- * Update content (콘텐츠 수정)
+ * Update content
  * PATCH /api/contents/{contentId}
  *
  * @param contentId - Content ID to update
@@ -89,7 +224,7 @@ export const updateContent = async (
   contentId: string,
   data: ContentUpdateRequest,
   thumbnail?: File,
-): Promise<ContentDto> => {
+): Promise<ContentResponse> => {
   const formData = new FormData();
 
   // Append request data as JSON blob
@@ -103,7 +238,7 @@ export const updateContent = async (
     formData.append('thumbnail', thumbnail);
   }
 
-  const response = await apiClient.patch<ContentDto>(`/api/contents/${contentId}`, formData, {
+  const response = await apiClient.patch<ContentResponse>(`/api/contents/${contentId}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -112,8 +247,15 @@ export const updateContent = async (
   return response.data;
 };
 
+export const restoreContentSeason = async (hiddenSeasonId: string): Promise<ContentResponse> => {
+  const response = await apiClient.patch<ContentResponse>(
+    `/api/admin/content-seasons/${hiddenSeasonId}/restore`,
+  );
+  return response.data;
+};
+
 /**
- * Delete content (콘텐츠 삭제)
+ * Delete content
  * DELETE /api/contents/{contentId}
  *
  * @param contentId - Content ID to delete
