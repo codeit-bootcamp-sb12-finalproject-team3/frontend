@@ -3,13 +3,12 @@ import { createReview, updateReview } from '@/lib/api/reviews';
 import useReviewStore from '@/lib/stores/useReviewStore';
 import type { ReviewCreateRequest, ReviewUpdateRequest, ReviewDto} from '@/lib/types';
 import icArrowLeft from '@/assets/ic_arrow_left.svg';
-import icStarFull from '@/assets/ic_star_full.svg';
-import icStarEmpty from '@/assets/ic_star_empty.svg';
+import StarRating from './StarRating';
 
 interface ReviewWriteFormProps {
   contentId: string;
   onCancel: () => void;
-  onComplete: () => void;
+  onComplete: (review: ReviewDto) => void | Promise<void>;
   editMode?: boolean;
   initialData?: ReviewDto;
 }
@@ -27,9 +26,8 @@ export default function ReviewWriteForm({
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    // 유효성 검사
-    if (rating === 0) {
-      setError('별점을 선택해주세요');
+    if (rating < 0.5 || rating > 5 || !Number.isInteger(rating * 2)) {
+      setError('0.5점부터 5.0점까지 0.5점 단위로 선택해주세요');
       return;
     }
     if (comment.trim().length === 0) {
@@ -41,33 +39,27 @@ export default function ReviewWriteForm({
     setError(null);
 
     try {
+      let savedReview: ReviewDto;
       if (editMode && initialData) {
-        // 수정 모드
-        // 1. API 호출
         const reviewData: ReviewUpdateRequest = {
           rating,
           text: comment.trim(),
         };
-        const updatedReview = await updateReview(initialData.id, reviewData);
+        savedReview = await updateReview(initialData.id, reviewData);
 
-        // 2. 스토어 동기화
-        useReviewStore.getState().update(initialData.id, updatedReview);
+        useReviewStore.getState().update(initialData.id, savedReview);
       } else {
-        // 작성 모드
-        // 1. API 호출
         const reviewData: ReviewCreateRequest = {
           contentId,
           rating,
           text: comment.trim(),
         };
-        const newReview = await createReview(reviewData);
+        savedReview = await createReview(reviewData);
 
-        // 2. 스토어 동기화
-        useReviewStore.getState().add(newReview);
+        useReviewStore.getState().add(savedReview);
       }
 
-      // 3. 완료 처리
-      onComplete();
+      await onComplete(savedReview);
     } catch (err) {
       console.error('Failed to create/update review:', err);
       setError('리뷰 처리에 실패했습니다.');
@@ -78,7 +70,6 @@ export default function ReviewWriteForm({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* 헤더 */}
       <div className="flex items-center gap-2 py-2 px-0">
         <button onClick={onCancel} className="w-5 h-5">
           <img src={icArrowLeft} alt="뒤로가기" className="w-full h-full" />
@@ -88,24 +79,11 @@ export default function ReviewWriteForm({
         </h2>
       </div>
 
-      {/* 별점 선택 */}
-      <div className="flex items-center gap-0.5 pb-5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            onClick={() => setRating(star)}
-            className="w-[60px] h-[60px] transition-opacity hover:opacity-80"
-          >
-            <img
-              src={star <= rating ? icStarFull : icStarEmpty}
-              alt={`${star}점`}
-              className="w-full h-full"
-            />
-          </button>
-        ))}
+      <div className="flex items-center gap-4 pb-5">
+        <StarRating value={rating} onChange={(nextRating) => { setRating(nextRating); setError(null); }} sizeClassName="size-[60px]" disabled={isSubmitting} />
+        <output className="min-w-14 text-title1-sb text-pink-300" aria-live="polite">{rating > 0 ? `${rating.toFixed(1)}점` : '선택'}</output>
       </div>
 
-      {/* 텍스트 입력 영역 */}
       <textarea
         value={comment}
         onChange={(e) => setComment(e.target.value)}
@@ -114,12 +92,10 @@ export default function ReviewWriteForm({
         disabled={isSubmitting}
       />
 
-      {/* 에러 메시지 */}
       {error && (
         <p className="text-body3-m text-red-notification -mt-4">{error}</p>
       )}
 
-      {/* 버튼 */}
       <div className="flex items-start gap-5">
         <button
           onClick={onCancel}

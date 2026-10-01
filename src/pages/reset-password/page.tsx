@@ -8,6 +8,7 @@ import logoIcon from '@/assets/Logo.svg';
 export default function ResetPasswordPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [email, setEmail] = useState('');
+  const [tempPassword, setTempPassword] = useState('');
 
   return (
     <div className="relative flex min-h-screen w-full items-center justify-center bg-background">
@@ -60,10 +61,16 @@ export default function ResetPasswordPage() {
         )}
 
         {step === 2 && (
-          <VerifyTempPasswordForm email={email} onSuccess={() => setStep(3)} />
+            <VerifyTempPasswordForm
+                email={email}
+                onSuccess={(verifiedTempPassword) => {
+                  setTempPassword(verifiedTempPassword);
+                  setStep(3);
+                }}
+            />
         )}
 
-        {step === 3 && <ChangePasswordForm />}
+        {step === 3 && <ChangePasswordForm tempPassword={tempPassword} />}
       </div>
     </div>
   );

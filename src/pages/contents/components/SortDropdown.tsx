@@ -1,16 +1,8 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import type {FindContentsParams, SortDirection} from '@/lib/types';
+import type { ContentSort } from '@/lib/types';
 
 export type SortOption = {
   label: string;
-  sortBy: FindContentsParams['sortBy'];
-  sortDirection?: SortDirection;
+  sortBy: ContentSort;
 };
 
 interface SortDropdownProps {
@@ -19,35 +11,27 @@ interface SortDropdownProps {
 }
 
 const SORT_OPTIONS: (SortOption & { value: string })[] = [
-  { value: 'popular', label: '인기순', sortBy: 'watcherCount', sortDirection: 'DESCENDING' },
-  { value: 'latest', label: '최신순', sortBy: 'createdAt', sortDirection: 'DESCENDING' },
-  { value: 'rating', label: '평점순', sortBy: 'rate', sortDirection: 'DESCENDING' },
+  { value: 'latest', label: '최신순', sortBy: 'latest' },
+  { value: 'rating', label: '평점순', sortBy: 'rating' },
 ];
 
 export default function SortDropdown({ value, onValueChange }: SortDropdownProps) {
-  const handleValueChange = (selectedValue: string) => {
-    const option = SORT_OPTIONS.find((opt) => opt.value === selectedValue);
-    if (option) {
-      onValueChange(option);
-    }
-  };
-
   return (
-    <Select value={value} onValueChange={handleValueChange}>
-      <SelectTrigger className="w-[93px] h-11 bg-gray-800 border-gray-700 text-body3-m text-gray-300">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent className="bg-gray-800 border-gray-700">
-        {SORT_OPTIONS.map((option) => (
-          <SelectItem
+    <div className="flex h-11 items-center rounded-full border border-gray-700 bg-gray-800/70 p-1" role="group" aria-label="콘텐츠 정렬">
+      {SORT_OPTIONS.map((option) => {
+        const selected = value === option.value;
+        return (
+          <button
             key={option.value}
-            value={option.value}
-            className="text-body3-m text-gray-300 focus:bg-gray-700 focus:text-white"
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onValueChange(option)}
+            className={`h-9 rounded-full px-4 text-body3-sb transition-colors ${selected ? 'bg-gray-100 text-gray-950 shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
           >
             {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+          </button>
+        );
+      })}
+    </div>
   );
 }

@@ -1,26 +1,28 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type {ContentSummary, ContentType} from '@/lib/types';
+import { toast } from 'sonner';
+import type { PlaylistContentSummary, PlaylistContentType } from '@/lib/types';
 import icStarFull from '@/assets/ic_star_full.svg';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 
-const ContentTypeLabel: Record<ContentType, string> = {
+const ContentTypeLabel: Record<PlaylistContentType, string> = {
   movie: '영화',
-  tvSeries: 'TV 시리즈',
-  sport: '스포츠',
+  tvSeason: 'TV 시즌',
 };
 
 interface PlaylistContentCardProps {
-  content: ContentSummary;
+  content: PlaylistContentSummary;
   playlistId: string;
   canDelete: boolean;
+  deleteDisabled: boolean;
   onDelete: () => void;
 }
 
 export default function PlaylistContentCard({
   content,
   canDelete,
+  deleteDisabled,
   onDelete,
 }: PlaylistContentCardProps) {
   const navigate = useNavigate();
@@ -32,6 +34,10 @@ export default function PlaylistContentCard({
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (deleteDisabled) {
+      toast.error('플레이리스트에는 최소 4개의 콘텐츠가 필요합니다.');
+      return;
+    }
     setShowDeleteDialog(true);
   };
 
@@ -61,7 +67,13 @@ export default function PlaylistContentCard({
           {canDelete && (
             <button
               onClick={handleDeleteClick}
-              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-pink-600 hover:bg-pink-700 flex items-center justify-center transition-colors z-10"
+              aria-disabled={deleteDisabled}
+              title={deleteDisabled ? '최소 4개의 콘텐츠가 필요해 삭제할 수 없습니다.' : undefined}
+              className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center transition-colors z-10 ${
+                deleteDisabled
+                  ? 'bg-gray-600 cursor-not-allowed'
+                  : 'bg-pink-600 hover:bg-pink-700'
+              }`}
               aria-label="플레이리스트에서 삭제"
             >
               <X className="w-4 h-4 text-white" />
@@ -91,25 +103,23 @@ export default function PlaylistContentCard({
         </div>
 
         {/* Category Tags */}
-        {content.tags && content.tags.length > 0 && (
-          <div className="flex gap-1.5 items-center flex-wrap">
-            <div className="px-2 py-1 rounded-full bg-gray-800 h-[22px] flex items-center justify-center">
+        <div className="flex gap-1.5 items-center flex-wrap">
+          <div className="px-2 py-1 rounded-full bg-gray-800 h-[22px] flex items-center justify-center">
+            <span className="text-caption1-sb text-gray-300 leading-none">
+              {ContentTypeLabel[content.type]}
+            </span>
+          </div>
+          {content.tags.slice(0, 2).map((tag) => (
+            <div
+              key={tag}
+              className="px-2 py-1 rounded-full bg-gray-800 h-[22px] flex items-center justify-center"
+            >
               <span className="text-caption1-sb text-gray-300 leading-none">
-                {ContentTypeLabel[content.type]}
+                {tag}
               </span>
             </div>
-            {content.tags.slice(0, 2).map((tag) => (
-              <div
-                key={tag}
-                className="px-2 py-1 rounded-full bg-gray-800 h-[22px] flex items-center justify-center"
-              >
-                <span className="text-caption1-sb text-gray-300 leading-none">
-                  {tag}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+          ))}
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}

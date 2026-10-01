@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { createUser } from '@/lib/api/users';
+import { useAuthStore } from '@/lib/stores/useAuthStore';
 import type { UserCreateRequest } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ interface SignUpFormData {
 
 export default function SignUpForm() {
   const navigate = useNavigate();
+  const signIn = useAuthStore((state) => state.signIn);
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -40,8 +42,15 @@ export default function SignUpForm() {
       };
 
       await createUser(userData);
-      toast.success('회원가입이 완료되었습니다');
-      navigate('/sign-in');
+      try {
+        await signIn(data.email, data.password);
+        toast.success('회원가입이 완료되었습니다');
+        navigate('/preferences', { replace: true });
+      } catch (signInError) {
+        console.error('Failed to sign in after sign up:', signInError);
+        toast.success('회원가입이 완료되었습니다. 로그인해 주세요.');
+        navigate('/sign-in', { replace: true });
+      }
     } catch (error) {
       console.error("Fail to sign up:", error);
       toast.error('회원가입에 실패했습니다. 다시 시도해주세요.');
@@ -127,13 +136,21 @@ export default function SignUpForm() {
               errors.password ? 'border-[#c93c3f]' : 'border-gray-800',
               'bg-[rgba(35,35,43,0.5)] px-5 py-3.5 text-body2-m-140 text-white placeholder:text-gray-400',
             )}
-            {...register('password', {
-              required: '비밀번호를 입력해주세요',
-              minLength: {
-                value: 8,
-                message: '비밀번호는 최소 8자 이상이어야 합니다',
-              },
-            })}
+              {...register('password', {
+                required: '비밀번호를 입력해주세요',
+                minLength: {
+                  value: 8,
+                  message: '비밀번호는 8자 이상 64자 이하여야 합니다.',
+                },
+                maxLength: {
+                  value: 64,
+                  message: '비밀번호는 8자 이상 64자 이하여야 합니다.',
+                },
+                pattern: {
+                  value: /^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[^\p{L}\p{N}\s]).*$/u,
+                  message: '비밀번호에는 영문, 숫자, 특수문자가 각각 하나 이상 포함되어야 합니다.',
+                },
+              })}
             disabled={isLoading}
           />
           {errors.password && (

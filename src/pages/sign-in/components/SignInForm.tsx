@@ -34,7 +34,7 @@ export default function SignInForm() {
     try {
       await signIn(data.email, data.password);
       toast.success('로그인에 성공했습니다');
-      navigate('/contents');
+      navigate('/recommendations');
     } catch (error) {
       console.error("Faile to sign in.", error);
 

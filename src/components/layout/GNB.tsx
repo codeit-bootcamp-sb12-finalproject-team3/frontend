@@ -5,7 +5,7 @@ import icPlus from '@/assets/ic_plus.svg';
 import icBell from '@/assets/ic_bell.svg';
 import icProfileDefault from '@/assets/ic_profile_default.svg';
 import useUIStore from '@/lib/stores/useUIStore';
-import {useNavigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router-dom";
 import {useAuthStore} from "@/lib/stores/useAuthStore.ts";
 import useNotificationStore from '@/lib/stores/useNotificationStore';
 import { useSseStore } from '@/lib/stores/sseStore';
@@ -18,15 +18,18 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import type { NotificationDto } from '@/lib/types';
+import useContentStore from '@/lib/stores/useContentStore';
 
 export default function GNB() {
   const { toggleSideMenu } = useUIStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: authentication, signOut } = useAuthStore();
   const { count, fetch: fetchNotifications, clear: clearNotifications } = useNotificationStore();
   const { connect, subscribe, unsubscribe, isConnected } = useSseStore();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isContentFormOpen, setIsContentFormOpen] = useState(false);
+  const [contentCreateReturn, setContentCreateReturn] = useState<'restore' | 'fresh'>('fresh');
 
   useEffect(() => {
     fetchNotifications();
@@ -45,18 +48,20 @@ export default function GNB() {
         await connect(authentication.accessToken);
       }
 
-      // Subscribe to "notifications" topic
-      subscribe('notifications', (newNotification: NotificationDto) => {
+      // Subscribe to notification creation events
+      subscribe('notification.created', (newNotification: NotificationDto) => {
         // Add new notification to store
         useNotificationStore.getState().add(newNotification);
       });
     };
 
-    setupSSE();
+    void setupSSE().catch((error) => {
+      console.error('Failed to establish the initial SSE connection:', error);
+    });
 
     // Cleanup: unsubscribe on unmount
     return () => {
-      unsubscribe('notifications');
+      unsubscribe('notification.created');
     };
   }, [authentication, isConnected, connect, subscribe, unsubscribe]);
 
@@ -67,6 +72,15 @@ export default function GNB() {
 
   const toggleNotification = () => {
     setIsNotificationOpen((prev) => !prev);
+  };
+
+  const openContentForm = () => {
+    const openedFromContentList = location.pathname === '/contents';
+    if (openedFromContentList) {
+      useContentStore.getState().saveScrollPosition(window.scrollY);
+    }
+    setContentCreateReturn(openedFromContentList ? 'restore' : 'fresh');
+    setIsContentFormOpen(true);
   };
 
   return (
@@ -94,7 +108,7 @@ export default function GNB() {
               (
                   <button
                       type="button"
-                      onClick={() => setIsContentFormOpen(true)}
+                      onClick={openContentForm}
                       className="flex items-center gap-1 rounded-full bg-gray-800/50 px-[18px] py-2.5 text-body2-sb text-gray-300"
                   >
                     <img src={icPlus} alt="" className="size-5" />
@@ -171,6 +185,7 @@ export default function GNB() {
         mode="create"
         open={isContentFormOpen}
         onOpenChange={setIsContentFormOpen}
+        onCreateSuccess={(contentId) => navigate(`/contents/${contentId}`, { state: { contentCreateReturn } })}
       />
     </div>
   );
