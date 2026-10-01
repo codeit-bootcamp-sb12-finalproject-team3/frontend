@@ -54,8 +54,8 @@ const router = createHashRouter(
 
           <Route element={<PreferenceRequiredRoute />}>
             <Route element={<ProtectedLayout />}>
-              {/* Home redirect to contents */}
-              <Route index element={<Navigate to="/contents" replace />} />
+              {/* Home redirect to recommendations */}
+              <Route index element={<Navigate to="/recommendations" replace />} />
 
               {/* Recommendations */}
               <Route

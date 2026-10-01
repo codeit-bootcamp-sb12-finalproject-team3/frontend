@@ -22,7 +22,7 @@ export default function OAuthCallbackPage() {
     const completeLogin = async () => {
       try {
         await signInWithOAuth(code);
-        navigate('/contents', { replace: true });
+        navigate('/recommendations', { replace: true });
       } catch (error) {
         console.error('OAuth login failed:', error);
         navigate('/sign-in?error=oauth2_login_failed', { replace: true });
