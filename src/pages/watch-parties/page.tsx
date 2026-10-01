@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { joinWatchParty } from '@/lib/api/watch-parties';
 import { getContent } from '@/lib/api/contents';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
+import useUIStore from '@/lib/stores/useUIStore';
 import useWatchPartyStore from '@/lib/stores/useWatchPartyStore';
 import type { ContentResponse, ContentSummaryResponse, WatchPartySummaryResponse } from '@/lib/types';
 import CreateWatchPartyDialog from './components/CreateWatchPartyDialog';
@@ -40,6 +41,7 @@ const toContentSummary = (content: ContentResponse): ContentSummaryResponse => (
 export default function WatchPartiesPage() {
   const navigate = useNavigate();
   const authentication = useAuthStore((state) => state.data);
+  const sideMenuCollapsed = useUIStore((state) => state.sideMenuCollapsed);
   const { data, status, cursor, loading, error, setStatus, setContentIdEqual, fetchMore } = useWatchPartyStore();
   const [searchParams] = useSearchParams();
   const contentIdEqual = searchParams.get('contentIdEqual') || undefined;
@@ -47,7 +49,15 @@ export default function WatchPartiesPage() {
   const [initialPartyContent, setInitialPartyContent] = useState<ContentSummaryResponse | undefined>();
   const [loadingInitialContent, setLoadingInitialContent] = useState(false);
   const [joiningPartyId, setJoiningPartyId] = useState<string | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const { ref: sentinelRef, inView } = useInView({ threshold: 0, rootMargin: '120px' });
+
+  useEffect(() => {
+    const updateScrollTopVisibility = () => setShowScrollTop(window.scrollY > 240);
+    updateScrollTopVisibility();
+    window.addEventListener('scroll', updateScrollTopVisibility, { passive: true });
+    return () => window.removeEventListener('scroll', updateScrollTopVisibility);
+  }, []);
 
   useEffect(() => {
     setContentIdEqual(contentIdEqual);
@@ -118,9 +128,9 @@ export default function WatchPartiesPage() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between">
-        <WatchPartyFilters value={status} onChange={setStatus} />
-        <span className="text-body3-m text-gray-500">총 {cursor.totalCount.toLocaleString()}개</span>
+      <div className="sticky top-0 z-40 -mx-[70px] flex items-center justify-between border-b border-gray-800 bg-background/95 px-[70px] py-4 shadow-lg shadow-black/10 backdrop-blur">
+        {!contentIdEqual && <WatchPartyFilters value={status} onChange={setStatus} />}
+        <span className="ml-auto text-body3-m text-gray-500">총 {cursor.totalCount.toLocaleString()}개</span>
       </div>
 
       {error && !loading && (
@@ -156,6 +166,17 @@ export default function WatchPartiesPage() {
         initialContent={initialPartyContent}
         onCreated={(party) => navigate(`/watch-parties/${party.id}`)}
       />
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="맨 위로 이동"
+          style={{ left: sideMenuCollapsed ? 'calc(50% + 40px)' : 'calc(50% + 120px)' }}
+          className="fixed bottom-6 z-50 flex size-12 -translate-x-1/2 items-center justify-center rounded-full border border-gray-700 bg-gray-900/95 text-white shadow-lg transition-[left,background-color,border-color] duration-300 hover:border-pink-500 hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
+        >
+          <ArrowUp className="size-5" aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }

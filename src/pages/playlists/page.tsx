@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import usePlaylistStore from '@/lib/stores/usePlaylistStore';
 import useAiPlaylistStore from '@/lib/stores/useAiPlaylistStore';
+import useUIStore from '@/lib/stores/useUIStore';
 import { getPlaylists } from '@/lib/api/playlists';
 import type { PlaylistSummary } from '@/lib/types';
 import PlaylistSortDropdown, { type PlaylistTab, type SortOption } from './components/PlaylistSortDropdown';
@@ -9,7 +10,7 @@ import PlaylistGrid from './components/PlaylistGrid';
 import CreatePlaylistDialog from './components/CreatePlaylistDialog';
 import { Button } from '@/components/ui/button';
 import SearchBar from '@/pages/contents/components/SearchBar';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowUp } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const TABS: { value: PlaylistTab; label: string }[] = [
@@ -21,6 +22,7 @@ const TABS: { value: PlaylistTab; label: string }[] = [
 export default function PlaylistsPage() {
   const { data, loading, error, fetchMore, hasNext, updateParams } = usePlaylistStore();
   const aiList = useAiPlaylistStore();
+  const sideMenuCollapsed = useUIStore((state) => state.sideMenuCollapsed);
   const [activeTab, setActiveTab] = useState<PlaylistTab>('all');
   const [sortValue, setSortValue] = useState('latest');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -28,6 +30,7 @@ export default function PlaylistsPage() {
   const [popularLoading, setPopularLoading] = useState(false);
   const [popularError, setPopularError] = useState<string>();
   const [popularKeyword, setPopularKeyword] = useState('');
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const contentIdEqual = searchParams.get('contentIdEqual') || undefined;
@@ -36,6 +39,13 @@ export default function PlaylistsPage() {
     threshold: 0,
     rootMargin: '100px',
   });
+
+  useEffect(() => {
+    const updateScrollTopVisibility = () => setShowScrollTop(window.scrollY > 240);
+    updateScrollTopVisibility();
+    window.addEventListener('scroll', updateScrollTopVisibility, { passive: true });
+    return () => window.removeEventListener('scroll', updateScrollTopVisibility);
+  }, []);
 
   useEffect(() => {
     if (contentIdEqual) {
@@ -133,28 +143,28 @@ export default function PlaylistsPage() {
         <h1 className="text-header1-b text-white">플레이리스트</h1>
       </div>
 
-      <div role="tablist" aria-label="플레이리스트 분류" className="flex items-center gap-8 border-b border-gray-700">
-        {TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            role="tab"
-            id={`playlist-tab-${tab.value}`}
-            aria-selected={activeTab === tab.value}
-            aria-controls="playlist-tab-panel"
-            onClick={() => handleTabChange(tab.value)}
-            className={`border-b-2 pb-4 text-body2-m transition-colors ${
-              activeTab === tab.value
-                ? 'border-pink-500 text-white'
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <div className="sticky top-0 z-40 -mx-[70px] flex flex-col gap-5 border-b border-gray-800 bg-background/95 px-[70px] py-4 shadow-lg shadow-black/10 backdrop-blur">
+        <div role="tablist" aria-label="플레이리스트 분류" className="flex items-center gap-8 border-b border-gray-700">
+          {TABS.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              role="tab"
+              id={`playlist-tab-${tab.value}`}
+              aria-selected={activeTab === tab.value}
+              aria-controls="playlist-tab-panel"
+              onClick={() => handleTabChange(tab.value)}
+              className={`border-b-2 pb-4 text-body2-m transition-colors ${
+                activeTab === tab.value
+                  ? 'border-pink-500 text-white'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-      <div role="tabpanel" id="playlist-tab-panel" aria-labelledby={`playlist-tab-${activeTab}`} className="flex flex-col gap-10">
         <div className="flex items-center justify-between gap-4">
           <SearchBar key={activeTab} onSearch={handleSearch} placeholder={activeTab === 'popular' ? '인기 상위 20개 검색' : '플레이리스트 또는 콘텐츠 검색'} />
 
@@ -168,7 +178,9 @@ export default function PlaylistsPage() {
             <PlaylistSortDropdown tab={activeTab} value={sortValue} onValueChange={handleSortChange}  />
           </div>
         </div>
+      </div>
 
+      <div role="tabpanel" id="playlist-tab-panel" aria-labelledby={`playlist-tab-${activeTab}`} className="flex flex-col gap-10">
         {activeTab === 'all' ? (
           <>
             <PlaylistGrid playlists={data} loading={loading} error={error} />
@@ -189,6 +201,17 @@ export default function PlaylistsPage() {
       </div>
 
       <CreatePlaylistDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="맨 위로 이동"
+          style={{ left: sideMenuCollapsed ? 'calc(50% + 40px)' : 'calc(50% + 120px)' }}
+          className="fixed bottom-6 z-50 flex size-12 -translate-x-1/2 items-center justify-center rounded-full border border-gray-700 bg-gray-900/95 text-white shadow-lg transition-[left,background-color,border-color] duration-300 hover:border-pink-500 hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
+        >
+          <ArrowUp className="size-5" aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }

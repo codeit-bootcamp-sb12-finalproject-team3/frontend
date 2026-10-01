@@ -8,7 +8,7 @@ import StarRating from './StarRating';
 interface ReviewWriteFormProps {
   contentId: string;
   onCancel: () => void;
-  onComplete: () => void | Promise<void>;
+  onComplete: (review: ReviewDto) => void | Promise<void>;
   editMode?: boolean;
   initialData?: ReviewDto;
 }
@@ -39,26 +39,27 @@ export default function ReviewWriteForm({
     setError(null);
 
     try {
+      let savedReview: ReviewDto;
       if (editMode && initialData) {
         const reviewData: ReviewUpdateRequest = {
           rating,
           text: comment.trim(),
         };
-        const updatedReview = await updateReview(initialData.id, reviewData);
+        savedReview = await updateReview(initialData.id, reviewData);
 
-        useReviewStore.getState().update(initialData.id, updatedReview);
+        useReviewStore.getState().update(initialData.id, savedReview);
       } else {
         const reviewData: ReviewCreateRequest = {
           contentId,
           rating,
           text: comment.trim(),
         };
-        const newReview = await createReview(reviewData);
+        savedReview = await createReview(reviewData);
 
-        useReviewStore.getState().add(newReview);
+        useReviewStore.getState().add(savedReview);
       }
 
-      await onComplete();
+      await onComplete(savedReview);
     } catch (err) {
       console.error('Failed to create/update review:', err);
       setError('리뷰 처리에 실패했습니다.');

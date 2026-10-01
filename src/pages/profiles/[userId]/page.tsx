@@ -1,5 +1,5 @@
 import {useEffect, useState} from 'react';
-import {useNavigate, useParams} from 'react-router-dom';
+import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
 import UserProfileSection from '@/pages/profiles/[userId]/components/UserProfileSection.tsx';
 import OwnedPlaylistsSection from '@/pages/profiles/[userId]/components/OwnedPlaylistsSection.tsx';
 import SubscribedPlaylistSection from '@/pages/profiles/[userId]/components/SubscribedPlaylistSection.tsx';
@@ -29,12 +29,22 @@ const tabs: {id: ProfileTab; label: string}[] = [
 export default function ProfilePage() {
   const {userId} = useParams<{userId: string}>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const myUserId = useAuthStore((state) => state.data?.userDto.id);
   const isOwnProfile = myUserId === userId;
-  const [activeTab, setActiveTab] = useState<ProfileTab>('owned');
   const [counts, setCounts] = useState<TabCounts>(emptyCounts);
   const visibleTabs = isOwnProfile ? tabs : tabs.slice(0, 2);
+  const activeTab = searchParams.get('tab') as ProfileTab | null;
   const selectedTab = visibleTabs.some((tab) => tab.id === activeTab) ? activeTab : 'owned';
+
+  const selectTab = (tab: ProfileTab) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (tab === 'owned') next.delete('tab');
+      else next.set('tab', tab);
+      return next;
+    }, {replace: true});
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -87,7 +97,7 @@ export default function ProfilePage() {
                 id={`profile-tab-${tab.id}`}
                 aria-selected={selectedTab === tab.id}
                 aria-controls="profile-tab-panel"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => selectTab(tab.id)}
                 className={`min-w-0 cursor-pointer border-b-2 px-1 py-3 text-center text-body1-m transition-colors ${
                   selectedTab === tab.id
                     ? 'border-gray-50 text-gray-50'

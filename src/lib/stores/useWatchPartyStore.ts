@@ -47,10 +47,9 @@ const useWatchPartyStore = create<WatchPartyStore>((set, get) => {
 
     const sequence = ++requestSequence;
     const params: WatchPartySearchParams = {
-      statusEqual: status,
-      contentIdEqual,
+      ...(contentIdEqual ? { contentIdEqual } : { statusEqual: status }),
       limit: PAGE_SIZE,
-      sortDirection: status === 'ENDED' ? 'DESCENDING' : 'ASCENDING',
+      sortDirection: !contentIdEqual && status === 'ENDED' ? 'DESCENDING' : 'ASCENDING',
       ...(append ? { cursor: cursor.nextCursor ?? undefined, idAfter: cursor.nextIdAfter ?? undefined } : {}),
     };
 
