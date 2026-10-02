@@ -100,7 +100,8 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
           </div>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            <span>{party.currentParticipantCount.toLocaleString()} / {party.maxParticipants.toLocaleString()}명</span>
+            {/* 서버 인원은 게스트만 셈(방장은 참여자로 저장 안 됨) → 방장 1명을 더해 표시 */}
+            <span>{(party.currentParticipantCount + 1).toLocaleString()}명 참여 중</span>
           </div>
         </div>
         {!isHost && party.status === 'SCHEDULED' && (

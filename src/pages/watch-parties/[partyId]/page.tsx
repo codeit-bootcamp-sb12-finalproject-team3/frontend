@@ -454,9 +454,11 @@ export default function WatchPartyRoomPage() {
   }
 
   const chatDisabled = !connected || party.status === 'ENDED';
-  const participantCount = participantsError || (participantsLoading && participants.length === 0)
+  // 참여자 목록·서버 인원 모두 게스트만 셈(방장은 참여자로 저장 안 됨) → 방장 1명을 더해 표시
+  const guestCount = participantsError || (participantsLoading && participants.length === 0)
     ? party.currentParticipantCount
     : participants.length;
+  const participantCount = guestCount + 1;
   const reminderRegistered = scheduledPartyIds.has(party.id);
   const reminderMutating = reminderMutatingPartyIds.has(party.id);
 
@@ -551,7 +553,6 @@ export default function WatchPartyRoomPage() {
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               <span className="flex items-center gap-2"><CalendarClock className="size-4" />{new Date(party.scheduledAt).toLocaleString('ko-KR')}</span>
               <span className="flex items-center gap-2"><Clock3 className="size-4" />예정 시간 {party.sessionDurationMinutes}분</span>
-              <span>최대 {party.maxParticipants}명</span>
               {party.startEpisode !== null && <span>에피소드 {party.startEpisode} ~ {party.endEpisode}</span>}
             </div>
             {connecting && <p className="mt-3 text-caption1-m text-gray-500">실시간 서버에 연결하는 중입니다.</p>}
