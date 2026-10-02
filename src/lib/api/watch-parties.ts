@@ -65,6 +65,11 @@ export const getWatchPartyParticipants = async (
   return response.data;
 };
 
+export const getServerTime = async (): Promise<number> => {
+  const response = await apiClient.get<{ serverTime: number }>('/api/watch-parties/server-time');
+  return response.data.serverTime;
+};
+
 export const kickWatchPartyParticipant = async (
   partyId: string,
   userId: string,

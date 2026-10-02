@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Clock3, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type {
   WatchPartyPlaybackControlRequest,
   WatchPartyPlaybackState,
 } from '@/lib/types';
+import { useServerClockOffset } from '@/lib/hooks/useServerClockOffset';
 
 interface PlaybackPanelProps {
   state: WatchPartyPlaybackState | null;
@@ -55,20 +56,21 @@ export default function PlaybackPanel({
   connected,
   onControl,
 }: PlaybackPanelProps) {
+  const clockOffset = useServerClockOffset();
   const [now, setNow] = useState(Date.now());
   const [seekTime, setSeekTime] = useState('');
   const [showSeek, setShowSeek] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (state?.status !== 'LIVE') return;
 
-    const interval = window.setInterval(
-      () => setNow(Date.now()),
-      1000,
-    );
+    // 서버 시계 기준 현재 시각으로 계산 (startedAt·pausedAt이 서버 시계 값이므로)
+    const tick = () => setNow(Date.now() + clockOffset);
+    tick();
+    const interval = window.setInterval(tick, 250);
 
     return () => window.clearInterval(interval);
-  }, [state?.status]);
+  }, [state?.status, clockOffset]);
 
   const elapsed = elapsedMs(state, now);
   const live = state?.status === 'LIVE';

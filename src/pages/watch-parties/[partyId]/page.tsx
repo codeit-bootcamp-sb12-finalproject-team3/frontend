@@ -46,7 +46,8 @@ const toPlaybackState = (party: WatchPartyResponse): WatchPartyPlaybackState | n
     startEpisode: party.startEpisode,
     endEpisode: party.endEpisode,
     hostId: party.host.userId,
-    updatedAt: Date.now(),
+    // REST 스냅샷은 순서 비교 기준이 없으므로 0 → 이후 실시간(서버 시각) 메시지가 항상 덮어씀
+    updatedAt: 0,
   };
 };
 
@@ -371,7 +372,7 @@ export default function WatchPartyRoomPage() {
       await endWatchParty(partyId);
       const now = Date.now();
       setParty((current) => current ? { ...current, status: 'ENDED', endedAt: new Date(now).toISOString() } : current);
-      setPlayback((current) => current ? { ...current, status: 'ENDED', updatedAt: now } : current);
+      // 타이머의 종료 시점은 서버가 보내는 ENDED 메시지(서버 시계)로 갱신
       toast.success('Watch Party를 종료했습니다.');
     } catch (requestError) {
       console.error(requestError);
