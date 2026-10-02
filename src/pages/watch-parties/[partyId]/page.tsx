@@ -207,9 +207,15 @@ export default function WatchPartyRoomPage() {
     };
   }, [loadParty]);
 
+  // 입장 로직은 "어느 파티인지"가 바뀔 때만 다시 돌도록, party 객체 대신 필요한 값만 꺼내 둔다
+  const loadedPartyId = party?.id;
+  const hostUserId = party?.host.userId;
+  const partyEndedRef = useRef(false);
+  partyEndedRef.current = party?.status === 'ENDED';
+
   useEffect(() => {
     const currentUserId = authentication?.userDto.id;
-    if (!partyId || !party || party.id !== partyId || !currentUserId) return;
+    if (!partyId || loadedPartyId !== partyId || !hostUserId || !currentUserId) return;
 
     const sequence = ++roomRequestSequence.current;
     setRoomReady(false);
@@ -217,7 +223,8 @@ export default function WatchPartyRoomPage() {
 
     const prepareRoom = async () => {
       try {
-        if (currentUserId !== party.host.userId) {
+        // 종료된 방은 참가 요청 없이 보기만 (서버가 409로 거절함)
+        if (currentUserId !== hostUserId && !partyEndedRef.current) {
           await joinWatchParty(partyId);
         }
         if (sequence !== roomRequestSequence.current) return;
@@ -238,8 +245,7 @@ export default function WatchPartyRoomPage() {
     return () => {
       roomRequestSequence.current += 1;
     };
-  }, [authentication?.userDto.id, loadChatHistory, loadParticipants, party, partyId, roomAttempt]);
-
+  }, [authentication?.userDto.id, loadChatHistory, loadParticipants, loadedPartyId, hostUserId, partyId, roomAttempt]);
   useEffect(() => {
     const currentUserId = authentication?.userDto.id;
     if (currentUserId) void fetchReminders(currentUserId);
@@ -248,6 +254,11 @@ export default function WatchPartyRoomPage() {
   const handlePlayback = useCallback((state: WatchPartyPlaybackState) => {
     realtimePlaybackReceived.current = true;
     setPlayback((current) => !current || state.updatedAt >= current.updatedAt ? state : current);
+    setParty((current) => {
+      if (!current || current.status === 'ENDED') return current;
+      const nextStatus = state.status === 'ENDED' ? 'ENDED' : 'LIVE';
+      return current.status === nextStatus ? current : { ...current, status: nextStatus };
+    });
   }, []);
 
   const handleChat = useCallback((message: WatchPartyChatMessage) => {

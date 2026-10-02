@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { joinWatchParty } from '@/lib/api/watch-parties';
+import { getWatchPartyJoinErrorMessage, joinWatchParty } from '@/lib/api/watch-parties';
 import { getContent } from '@/lib/api/contents';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useUIStore from '@/lib/stores/useUIStore';
@@ -105,7 +105,7 @@ export default function WatchPartiesPage() {
       navigate(`/watch-parties/${party.id}`);
     } catch (error) {
       console.error(error);
-      toast.error('Watch Party에 참여하지 못했습니다. 참여 상태와 정원을 확인해주세요.');
+      toast.error(getWatchPartyJoinErrorMessage(error));
     } finally {
       setJoiningPartyId(null);
     }
