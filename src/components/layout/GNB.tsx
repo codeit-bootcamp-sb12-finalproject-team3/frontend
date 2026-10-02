@@ -102,14 +102,14 @@ export default function GNB() {
         </div>
 
         {/* Right Section */}
-        <div className="flex items-center gap-9">
+        <div className="flex shrink-0 items-center gap-3">
           {
             authentication?.userDto.role === 'ADMIN' &&
               (
                   <button
                       type="button"
                       onClick={openContentForm}
-                      className="flex items-center gap-1 rounded-full bg-gray-800/50 px-[18px] py-2.5 text-body2-sb text-gray-300"
+                      className="flex h-10 items-center justify-center gap-1.5 rounded-full bg-gray-800/50 px-4 text-body2-sb text-gray-300 hover:bg-gray-700"
                   >
                     <img src={icPlus} alt="" className="size-5" />
                     <span>콘텐츠 등록</span>
@@ -118,18 +118,18 @@ export default function GNB() {
           }
 
 
-          <div className="flex items-center gap-9">
+          <div className="flex items-center gap-3">
             {/* Notification Bell with Badge */}
             <div className="relative">
               <button
                 type="button"
-                className="relative size-6"
+                className="relative flex size-10 items-center justify-center rounded-full bg-gray-800/50 hover:bg-gray-700"
                 aria-label="Notifications"
                 onClick={toggleNotification}
               >
-                <img src={icBell} alt="" className="size-full" />
+                <img src={icBell} alt="" className="size-6" />
                 {count() > 0 && (
-                  <div className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-red-notification">
+                  <div className="absolute right-0 top-0 flex size-4 items-center justify-center rounded-full bg-red-notification">
                     <span className="text-[9px] font-bold leading-none text-gray-100">
                       {count() > 99 ? '99+' : count()}
                     </span>
@@ -148,13 +148,13 @@ export default function GNB() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="relative size-6 overflow-hidden rounded-full border border-white/10 bg-gray-600"
+                  className="flex size-10 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-gray-800/50 hover:bg-gray-700"
                   aria-label="Profile"
                 >
                   <img
                     src={authentication?.userDto.profileImageUrl || icProfileDefault}
                     alt={authentication?.userDto.name}
-                    className="size-full"
+                    className="size-7 rounded-full object-cover"
                   />
                 </button>
               </DropdownMenuTrigger>

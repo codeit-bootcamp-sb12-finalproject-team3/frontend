@@ -46,7 +46,7 @@ const useContentStore = create<ContentStore>((set, get) => ({
   data: [],
   params: {
     limit: 20,
-    sortBy: 'latest',
+    sortBy: 'rating',
   },
   cursorState: initialCursorState,
   loading: false,
@@ -154,7 +154,7 @@ const useContentStore = create<ContentStore>((set, get) => ({
   prepareFreshBrowse: () => {
     set({
       data: [],
-      params: { limit: 20, sortBy: 'latest' },
+      params: { limit: 20, sortBy: 'rating' },
       cursorState: initialCursorState,
       scrollPosition: 0,
       shouldRestoreScroll: false,
