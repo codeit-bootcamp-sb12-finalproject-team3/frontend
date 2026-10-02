@@ -75,7 +75,7 @@ export default function CreateWatchPartyDialog({
   }, [searchInput]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || initialContent) return;
     const sequence = ++requestSequence.current;
     setLoadingContents(true);
     Promise.all([
@@ -97,7 +97,7 @@ export default function CreateWatchPartyDialog({
       .finally(() => {
         if (requestSequence.current === sequence) setLoadingContents(false);
       });
-  }, [open, searchKeyword]);
+  }, [open, searchKeyword, initialContent]);
 
   const isSeason = selectedContent?.type === 'tvSeason';
   const hasNext = Boolean(pages.movie?.hasNext || pages.tvSeries?.hasNext);
@@ -211,7 +211,7 @@ export default function CreateWatchPartyDialog({
           <div className="flex items-start justify-between border-b border-gray-700 px-8 py-6">
             <div className="space-y-2">
               <DialogTitle className="text-title1-b">Watch Party 만들기</DialogTitle>
-              <DialogDescription>같이 볼 영화 또는 TV 시즌과 파티 정보를 입력해주세요.</DialogDescription>
+              <DialogDescription>{initialContent ? '선택한 콘텐츠로 파티를 만들어요. 일정과 인원을 정해주세요.' : '같이 볼 영화 또는 TV 시즌과 파티 정보를 입력해주세요.'}</DialogDescription>
             </div>
             <button type="button" onClick={() => handleOpenChange(false)} disabled={creating} className="rounded-full p-1 text-gray-300 hover:bg-gray-700" aria-label="닫기">
               <X className="h-5 w-5" />
@@ -219,7 +219,27 @@ export default function CreateWatchPartyDialog({
           </div>
 
           <div className="space-y-6 overflow-y-auto px-8 py-6">
-            <section className="space-y-3">
+            {initialContent ? (
+              <section aria-label="함께 볼 콘텐츠" className="space-y-3">
+                <h3 className="text-body2-b text-white">함께 볼 콘텐츠</h3>
+                <div className="flex items-center gap-4 rounded-2xl border border-pink-500/40 bg-pink-500/10 p-4">
+                  <div className="h-24 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-700">
+                    {initialContent.thumbnailUrl && <img src={initialContent.thumbnailUrl} alt="" className="h-full w-full object-cover" />}
+                  </div>
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-caption1-sb text-pink-300">선택한 콘텐츠</p>
+                    <p className="text-body2-b text-white">{initialContent.title}</p>
+                    <p className="text-body3-m text-gray-400">
+                      {initialContent.type === 'tvSeason'
+                        ? `TV 시즌${initialContent.seasonNumber !== null ? ` ${initialContent.seasonNumber}` : ''}`
+                        : '영화'}
+                      {initialContent.releaseDate ? ` · ${initialContent.releaseDate.slice(0, 4)}` : ''}
+                    </p>
+                    {initialContent.description && <p className="line-clamp-2 text-body3-m text-gray-300">{initialContent.description}</p>}
+                  </div>
+                </div>
+              </section>
+            ) : <section className="space-y-3">
               <h3 className="text-body2-b text-white">콘텐츠 선택</h3>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
@@ -251,7 +271,7 @@ export default function CreateWatchPartyDialog({
                   </Button>
                 )}
               </div>
-            </section>
+            </section>}
 
             <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <label className="flex flex-col gap-2 text-body3-sb text-gray-200">파티 제목

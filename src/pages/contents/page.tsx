@@ -14,7 +14,7 @@ export default function ContentsPage() {
   const { data, params, cursorState, loading, error, scrollPosition, shouldRestoreScroll, fetch, fetchMore, hasNext, updateParams, markScrollRestored } = useContentStore();
   const sideMenuCollapsed = useUIStore((state) => state.sideMenuCollapsed);
   const [selectedType, setSelectedType] = useState<ContentTypeFilter | 'ALL'>(() => useContentStore.getState().params.typeEqual ?? 'ALL');
-  const [sortValue, setSortValue] = useState(() => useContentStore.getState().params.sortBy ?? 'latest');
+  const [sortValue, setSortValue] = useState(() => useContentStore.getState().params.sortBy ?? 'rating');
   const [searchResetKey, setSearchResetKey] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const initialLoadStarted = useRef(false);

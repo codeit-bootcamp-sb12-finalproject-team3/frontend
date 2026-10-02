@@ -154,7 +154,10 @@ export default function SearchBar({
         type="text"
         value={value}
         maxLength={maxLength}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          setValue(e.target.value);
+          setFocused(true);
+        }}
         onFocus={() => setFocused(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
