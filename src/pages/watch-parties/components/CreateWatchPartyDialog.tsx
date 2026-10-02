@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { createWatchParty } from '@/lib/api/watch-parties';
-import { getContents } from '@/lib/api/contents';
+import { getContentEpisodes, getContents } from '@/lib/api/contents';
 import type {
   ContentSummaryResponse,
   CursorResponseContentSummary,
+  EpisodeResponse,
   WatchPartyResponse,
 } from '@/lib/types';
 
@@ -24,6 +25,7 @@ interface ContentPages {
 }
 
 const PAGE_SIZE = 20;
+const DEFAULT_EPISODE_RUNTIME_MINUTES = 70;
 const inputClassName = 'h-11 rounded-xl border border-gray-700 bg-gray-900/60 px-4 text-body2-m text-white outline-none focus:border-pink-600';
 
 const mergeContents = (...groups: ContentSummaryResponse[][]) =>
@@ -59,15 +61,83 @@ export default function CreateWatchPartyDialog({
   const [scheduledAt, setScheduledAt] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('');
   const [sessionDurationMinutes, setSessionDurationMinutes] = useState('');
+  const [durationEdited, setDurationEdited] = useState(false);
+  const [seasonEpisodes, setSeasonEpisodes] = useState<{ contentId: string; episodes: EpisodeResponse[] } | null>(null);
+  const [episodesLoading, setEpisodesLoading] = useState(false);
+  const [episodesError, setEpisodesError] = useState(false);
   const [startEpisode, setStartEpisode] = useState('');
   const [endEpisode, setEndEpisode] = useState('');
   const [loadingContents, setLoadingContents] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  const selectContent = useCallback((content: ContentSummaryResponse) => {
+    setSelectedContent(content);
+    setStartEpisode('');
+    setEndEpisode('');
+    setSeasonEpisodes(null);
+    setDurationEdited(false);
+    setSessionDurationMinutes(
+      content.type === 'movie' && content.runtime != null && content.runtime > 0
+        ? String(content.runtime)
+        : '',
+    );
+  }, []);
+
   useEffect(() => {
-    if (open && initialContent) setSelectedContent(initialContent);
-  }, [open, initialContent]);
+    if (open && initialContent && selectedContent?.id !== initialContent.id) {
+      selectContent(initialContent);
+    }
+  }, [open, initialContent, selectedContent?.id, selectContent]);
+
+  useEffect(() => {
+    if (!open || selectedContent?.type !== 'tvSeason') return;
+    const contentId = selectedContent.id;
+    let cancelled = false;
+    setSeasonEpisodes(null);
+    setEpisodesLoading(true);
+    setEpisodesError(false);
+    void getContentEpisodes(contentId)
+      .then((episodes) => {
+        if (!cancelled) setSeasonEpisodes({ contentId, episodes });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error(error);
+        setEpisodesError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setEpisodesLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [open, selectedContent?.id, selectedContent?.type]);
+
+  useEffect(() => {
+    if (selectedContent?.type !== 'tvSeason' || durationEdited) return;
+    const start = Number(startEpisode);
+    const end = Number(endEpisode);
+    if (!seasonEpisodes || seasonEpisodes.contentId !== selectedContent.id
+      || startEpisode === '' || endEpisode === ''
+      || !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) {
+      setSessionDurationMinutes('');
+      return;
+    }
+    const episodesByNumber = new Map(
+      seasonEpisodes.episodes.map((episode) => [episode.episodeNumber, episode]),
+    );
+    let total = 0;
+    for (let episodeNumber = start; episodeNumber <= end; episodeNumber += 1) {
+      const episode = episodesByNumber.get(episodeNumber);
+      if (!episode) {
+        setSessionDurationMinutes('');
+        return;
+      }
+      total += episode.runtime != null && episode.runtime > 0
+        ? episode.runtime
+        : DEFAULT_EPISODE_RUNTIME_MINUTES;
+    }
+    setSessionDurationMinutes(String(total));
+  }, [selectedContent?.id, selectedContent?.type, seasonEpisodes, startEpisode, endEpisode, durationEdited]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearchKeyword(searchInput.trim()), 300);
@@ -131,6 +201,10 @@ export default function CreateWatchPartyDialog({
     setScheduledAt('');
     setMaxParticipants('');
     setSessionDurationMinutes('');
+    setDurationEdited(false);
+    setSeasonEpisodes(null);
+    setEpisodesLoading(false);
+    setEpisodesError(false);
     setStartEpisode('');
     setEndEpisode('');
     setLoadingContents(false);
@@ -210,7 +284,7 @@ export default function CreateWatchPartyDialog({
         <form onSubmit={handleSubmit} className="flex max-h-[92vh] flex-col">
           <div className="flex items-start justify-between border-b border-gray-700 px-8 py-6">
             <div className="space-y-2">
-              <DialogTitle className="text-title1-b">Watch Party 만들기</DialogTitle>
+              <DialogTitle className="text-title1-b text-gray-50">Watch Party 만들기</DialogTitle>
               <DialogDescription>{initialContent ? '선택한 콘텐츠로 파티를 만들어요. 일정과 인원을 정해주세요.' : '같이 볼 영화 또는 TV 시즌과 파티 정보를 입력해주세요.'}</DialogDescription>
             </div>
             <button type="button" onClick={() => handleOpenChange(false)} disabled={creating} className="rounded-full p-1 text-gray-300 hover:bg-gray-700" aria-label="닫기">
@@ -253,7 +327,7 @@ export default function CreateWatchPartyDialog({
                 ) : (
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {contents.map((content) => (
-                      <button key={content.id} type="button" onClick={() => setSelectedContent(content)} className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${selectedContent?.id === content.id ? 'border-pink-500 bg-pink-500/10' : 'border-transparent bg-gray-800 hover:border-gray-600'}`}>
+                      <button key={content.id} type="button" onClick={() => selectContent(content)} className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${selectedContent?.id === content.id ? 'border-pink-500 bg-pink-500/10' : 'border-transparent bg-gray-800 hover:border-gray-600'}`}>
                         <div className="h-14 w-10 shrink-0 overflow-hidden rounded bg-gray-700">
                           {content.thumbnailUrl && <img src={content.thumbnailUrl} alt="" className="h-full w-full object-cover" />}
                         </div>
@@ -284,7 +358,8 @@ export default function CreateWatchPartyDialog({
                 <input type="number" min="1" step="1" value={maxParticipants} onChange={(event) => setMaxParticipants(event.target.value)} className={inputClassName} placeholder="예: 10" />
               </label>
               <label className="flex flex-col gap-2 text-body3-sb text-gray-200">세션 예정 시간(분)
-                <input type="number" min="1" step="1" value={sessionDurationMinutes} onChange={(event) => setSessionDurationMinutes(event.target.value)} className={inputClassName} placeholder="예: 120" />
+                <input type="number" min="1" step="1" value={sessionDurationMinutes} onChange={(event) => { setDurationEdited(true); setSessionDurationMinutes(event.target.value); }} className={inputClassName} placeholder="예: 120" />
+                {isSeason && <span className="text-caption1-m text-gray-400">{episodesLoading ? '에피소드 시간을 확인하는 중입니다.' : episodesError ? '에피소드 정보를 불러오지 못했습니다. 시간을 직접 입력해주세요.' : '회차 범위를 입력하면 자동 계산됩니다. 상영 시간이 없는 회차는 70분으로 계산해요.'}</span>}
               </label>
               {isSeason && (
                 <>
