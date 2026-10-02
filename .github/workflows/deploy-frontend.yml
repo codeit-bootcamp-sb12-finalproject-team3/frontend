@@ -23,17 +23,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 최초 OIDC 확인용 - 정상 배포 확인 후 제거
-      - name: Debug OIDC claims
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('sts.amazonaws.com')
-            const payload = JSON.parse(
-              Buffer.from(token.split('.')[1], 'base64url').toString()
-            )
-            console.log('OIDC aud:', payload.aud)
-            console.log('OIDC sub:', payload.sub)
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -53,8 +42,8 @@ jobs:
       - name: Build frontend
         run: npm run build
         env:
-          VITE_API_BASE_URL: https://db12plwo4froe.cloudfront.net
-          VITE_REALTIME_BASE_URL: https://db12plwo4froe.cloudfront.net
+          VITE_API_BASE_URL: https://mopl.click
+          VITE_REALTIME_BASE_URL: https://mopl.click
 
       - name: Deploy to S3
         run: |
