@@ -8,6 +8,7 @@ import type {
   WatchPartySearchParams,
   WatchPartySummaryResponse,
 } from '@/lib/types';
+import { isAxiosError } from 'axios';
 
 export const getWatchParties = async (
   params: WatchPartySearchParams,
@@ -64,6 +65,11 @@ export const getWatchPartyParticipants = async (
   return response.data;
 };
 
+export const getServerTime = async (): Promise<number> => {
+  const response = await apiClient.get<{ serverTime: number }>('/api/watch-parties/server-time');
+  return response.data.serverTime;
+};
+
 export const kickWatchPartyParticipant = async (
   partyId: string,
   userId: string,
@@ -85,4 +91,23 @@ export const startWatchParty = async (partyId: string): Promise<void> => {
 
 export const endWatchParty = async (partyId: string): Promise<void> => {
   await apiClient.patch(`/api/watch-parties/${partyId}/end`);
+};
+
+interface WatchPartyApiErrorResponse {
+  code?: string;
+  details?: { opensAt?: string };
+}
+
+/** 참가 실패 시 보여줄 문구. 대기실 오픈 전이면 입장 가능 시각을 알려준다 */
+export const getWatchPartyJoinErrorMessage = (error: unknown): string => {
+  if (isAxiosError<WatchPartyApiErrorResponse>(error)) {
+    const data = error.response?.data;
+    if (data?.code === 'WATCHPARTY_LOBBY_NOT_OPEN' && data.details?.opensAt) {
+      const opensAt = new Date(data.details.opensAt).toLocaleString('ko-KR', {
+        month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+      return `${opensAt}부터 입장할 수 있어요.`;
+    }
+  }
+  return 'Watch Party에 참여하지 못했습니다. 참여 상태와 정원을 확인해주세요.';
 };

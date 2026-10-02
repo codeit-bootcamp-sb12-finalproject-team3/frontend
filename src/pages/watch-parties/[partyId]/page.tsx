@@ -46,7 +46,8 @@ const toPlaybackState = (party: WatchPartyResponse): WatchPartyPlaybackState | n
     startEpisode: party.startEpisode,
     endEpisode: party.endEpisode,
     hostId: party.host.userId,
-    updatedAt: Date.now(),
+    // REST 스냅샷은 순서 비교 기준이 없으므로 0 → 이후 실시간(서버 시각) 메시지가 항상 덮어씀
+    updatedAt: 0,
   };
 };
 
@@ -207,9 +208,15 @@ export default function WatchPartyRoomPage() {
     };
   }, [loadParty]);
 
+  // 입장 로직은 "어느 파티인지"가 바뀔 때만 다시 돌도록, party 객체 대신 필요한 값만 꺼내 둔다
+  const loadedPartyId = party?.id;
+  const hostUserId = party?.host.userId;
+  const partyEndedRef = useRef(false);
+  partyEndedRef.current = party?.status === 'ENDED';
+
   useEffect(() => {
     const currentUserId = authentication?.userDto.id;
-    if (!partyId || !party || party.id !== partyId || !currentUserId) return;
+    if (!partyId || loadedPartyId !== partyId || !hostUserId || !currentUserId) return;
 
     const sequence = ++roomRequestSequence.current;
     setRoomReady(false);
@@ -217,7 +224,8 @@ export default function WatchPartyRoomPage() {
 
     const prepareRoom = async () => {
       try {
-        if (currentUserId !== party.host.userId) {
+        // 종료된 방은 참가 요청 없이 보기만 (서버가 409로 거절함)
+        if (currentUserId !== hostUserId && !partyEndedRef.current) {
           await joinWatchParty(partyId);
         }
         if (sequence !== roomRequestSequence.current) return;
@@ -238,8 +246,7 @@ export default function WatchPartyRoomPage() {
     return () => {
       roomRequestSequence.current += 1;
     };
-  }, [authentication?.userDto.id, loadChatHistory, loadParticipants, party, partyId, roomAttempt]);
-
+  }, [authentication?.userDto.id, loadChatHistory, loadParticipants, loadedPartyId, hostUserId, partyId, roomAttempt]);
   useEffect(() => {
     const currentUserId = authentication?.userDto.id;
     if (currentUserId) void fetchReminders(currentUserId);
@@ -248,6 +255,11 @@ export default function WatchPartyRoomPage() {
   const handlePlayback = useCallback((state: WatchPartyPlaybackState) => {
     realtimePlaybackReceived.current = true;
     setPlayback((current) => !current || state.updatedAt >= current.updatedAt ? state : current);
+    setParty((current) => {
+      if (!current || current.status === 'ENDED') return current;
+      const nextStatus = state.status === 'ENDED' ? 'ENDED' : 'LIVE';
+      return current.status === nextStatus ? current : { ...current, status: nextStatus };
+    });
   }, []);
 
   const handleChat = useCallback((message: WatchPartyChatMessage) => {
@@ -360,7 +372,7 @@ export default function WatchPartyRoomPage() {
       await endWatchParty(partyId);
       const now = Date.now();
       setParty((current) => current ? { ...current, status: 'ENDED', endedAt: new Date(now).toISOString() } : current);
-      setPlayback((current) => current ? { ...current, status: 'ENDED', updatedAt: now } : current);
+      // 타이머의 종료 시점은 서버가 보내는 ENDED 메시지(서버 시계)로 갱신
       toast.success('Watch Party를 종료했습니다.');
     } catch (requestError) {
       console.error(requestError);
@@ -442,9 +454,11 @@ export default function WatchPartyRoomPage() {
   }
 
   const chatDisabled = !connected || party.status === 'ENDED';
-  const participantCount = participantsError || (participantsLoading && participants.length === 0)
+  // 참여자 목록·서버 인원 모두 게스트만 셈(방장은 참여자로 저장 안 됨) → 방장 1명을 더해 표시
+  const guestCount = participantsError || (participantsLoading && participants.length === 0)
     ? party.currentParticipantCount
     : participants.length;
+  const participantCount = guestCount + 1;
   const reminderRegistered = scheduledPartyIds.has(party.id);
   const reminderMutating = reminderMutatingPartyIds.has(party.id);
 
@@ -539,7 +553,6 @@ export default function WatchPartyRoomPage() {
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               <span className="flex items-center gap-2"><CalendarClock className="size-4" />{new Date(party.scheduledAt).toLocaleString('ko-KR')}</span>
               <span className="flex items-center gap-2"><Clock3 className="size-4" />예정 시간 {party.sessionDurationMinutes}분</span>
-              <span>최대 {party.maxParticipants}명</span>
               {party.startEpisode !== null && <span>에피소드 {party.startEpisode} ~ {party.endEpisode}</span>}
             </div>
             {connecting && <p className="mt-3 text-caption1-m text-gray-500">실시간 서버에 연결하는 중입니다.</p>}

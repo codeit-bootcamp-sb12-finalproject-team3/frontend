@@ -127,14 +127,6 @@ export type FollowRequest = components['schemas']['FollowRequest'];
 // Notification types
 export type NotificationDto = components['schemas']['NotificationDto'];
 
-// Watching Session types
-export type WatchingSessionDto = components['schemas']['WatchingSessionDto'];
-export type WatchingSessionChange = {
-  type: 'JOIN' | 'LEAVE';
-  watchingSession: WatchingSessionDto;
-  watcherCount: number;
-}
-
 // Cursor pagination types
 export type CursorResponseUserDto = components['schemas']['CursorResponseUserDto'];
 export type CursorResponseContentDto = components['schemas']['CursorResponseContentDto'];
@@ -143,7 +135,6 @@ export type CursorResponseReviewDto = components['schemas']['CursorResponseRevie
 export type CursorResponseConversationListResponse = components['schemas']['CursorResponseConversationListResponse'];
 export type CursorResponseDirectMessageDto = components['schemas']['CursorResponseDirectMessageDto'];
 export type CursorResponseNotificationDto = components['schemas']['CursorResponseNotificationDto'];
-export type CursorResponseWatchingSessionDto = components['schemas']['CursorResponseWatchingSessionDto'];
 
 export type CursorResponse =
     CursorResponseUserDto
@@ -152,8 +143,7 @@ export type CursorResponse =
     | CursorResponseReviewDto
     | CursorResponseConversationListResponse
     | CursorResponseDirectMessageDto
-    | CursorResponseNotificationDto
-    | CursorResponseWatchingSessionDto;
+    | CursorResponseNotificationDto;
 
 
 // Error types
@@ -193,10 +183,6 @@ export type FindDmsParams = operations['findDms']['parameters']['query'];
 // Notification query params
 export type GetNotificationsParams = operations['getNotifications']['parameters']['query'];
 
-// Watching session query params
-export type FindWatchingSessionsByContentParams =
-  operations['findWatchingSessionsByContent']['parameters']['query'];
-
 export type CursorParams =
     FindUsersParams
     | FindContentsParams
@@ -204,5 +190,4 @@ export type CursorParams =
     | FindReviewsParams
     | FindConversationsParams
     | FindDmsParams
-    | GetNotificationsParams
-    | FindWatchingSessionsByContentParams;
+    | GetNotificationsParams;

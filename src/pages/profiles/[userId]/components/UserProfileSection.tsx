@@ -6,13 +6,11 @@ import {LoadingSpinner} from "@/components/ui/loading-spinner.tsx";
 import {
   cancelFollow,
   createFollow, getFollowerCount,
-  getWatchingSessionByWatcher,
   isFollowedByMe,
   updateUser
 } from "@/lib/api";
 import {toast} from "sonner";
 import {useEffect, useRef, useState} from "react";
-import type {WatchingSessionDto} from "@/lib/types";
 import {useNavigate} from "react-router-dom";
 import useUserProfileStore from "@/lib/stores/useUserProfileStore.ts";
 import useAuthStore from "@/lib/stores/useAuthStore.ts";
@@ -23,8 +21,6 @@ export default function UserProfileSection({userId}: {userId: string}) {
   const { data: profile, loading: profileLoading, error, updateParams, clear } = useUserProfileStore();
   const { data: jwt } = useAuthStore();
 
-  const [currentlyWatching, setCurrentlyWatching] = useState<WatchingSessionDto | null>(null);
-  const [watchingLoading, setWatchingLoading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
@@ -49,23 +45,6 @@ export default function UserProfileSection({userId}: {userId: string}) {
       clear();
     };
   }, [userId, updateParams, clear]);
-
-  // Fetch currently watching content
-  useEffect(() => {
-    const fetchWatchingSession = async () => {
-      setWatchingLoading(true);
-      try {
-        const session = await getWatchingSessionByWatcher(userId);
-        setCurrentlyWatching(session);
-      } catch (error) {
-        console.error('Failed to fetch watching session:', error);
-      } finally {
-        setWatchingLoading(false);
-      }
-    };
-
-    fetchWatchingSession();
-  }, [userId]);
 
   // Handle follow/unfollow
   const handleFollowToggle = async () => {
@@ -239,11 +218,6 @@ export default function UserProfileSection({userId}: {userId: string}) {
     navigate(`/conversations/with?userId=${userId}`);
   };
 
-  // Handle content click
-  const handleContentClick = (contentId: string) => {
-    navigate(`/contents/${contentId}`);
-  };
-
   // Loading state
   if (profileLoading) {
     return (
@@ -383,26 +357,6 @@ export default function UserProfileSection({userId}: {userId: string}) {
               <span className="text-title1-sb text-gray-100">{followerCount.toLocaleString()}</span>
             </div>
 
-            {/* Currently Watching (if exists) */}
-            {watchingLoading ? (
-                <div className="flex items-center gap-2">
-                  <LoadingSpinner />
-                  <span className="text-body2-m text-gray-400">시청 정보 불러오는 중...</span>
-                </div>
-            ) : (
-                currentlyWatching && (
-                    <p className="text-body2-m">
-                      <span className="text-gray-400">지금 </span>
-                      <button
-                          onClick={() => handleContentClick(currentlyWatching.content.id)}
-                          className="text-gray-100 font-bold underline hover:text-gray-50 transition-colors cursor-pointer"
-                      >
-                        {currentlyWatching.content.title}
-                      </button>
-                      <span className="text-gray-400">를 보고 있습니다.</span>
-                    </p>
-                )
-            )}
           </div>
         </div>
       </>
