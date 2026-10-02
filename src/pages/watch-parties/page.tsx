@@ -130,7 +130,6 @@ export default function WatchPartiesPage() {
 
       <div className="sticky top-0 z-40 -mx-[70px] flex items-center justify-between border-b border-gray-800 bg-background/95 px-[70px] py-4 shadow-lg shadow-black/10 backdrop-blur">
         {!contentIdEqual && <WatchPartyFilters value={status} onChange={setStatus} />}
-        <span className="ml-auto text-body3-m text-gray-500">총 {cursor.totalCount.toLocaleString()}개</span>
       </div>
 
       {error && !loading && (
