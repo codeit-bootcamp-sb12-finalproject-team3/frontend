@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useWatchPartyReminderStore from '@/lib/stores/useWatchPartyReminderStore';
 import type { WatchPartyStatus, WatchPartySummaryResponse } from '@/lib/types';
+import { getParticipantDisplay } from '@/lib/utils/watch-party';
 
 const STATUS_LABELS: Record<WatchPartyStatus, string> = {
   LIVE: '진행 중',
@@ -44,6 +45,7 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
   const cancelReminder = useWatchPartyReminderStore((state) => state.cancelReminder);
   const ended = party.status === 'ENDED';
   const isHost = party.host.userId === currentUserId;
+  const participantDisplay = getParticipantDisplay(party.status, party.currentParticipantCount);
   const reminderRegistered = scheduledPartyIds.has(party.id);
 
   useEffect(() => {
@@ -97,11 +99,12 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
             <CalendarClock className="h-4 w-4" />
             <span>{formatScheduledAt(party.scheduledAt)}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            {/* 서버 인원은 게스트만 셈(방장은 참여자로 저장 안 됨) → 방장 1명을 더해 표시 */}
-            <span>{(party.currentParticipantCount + 1).toLocaleString()}명 참여 중</span>
-          </div>
+          {participantDisplay && (
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>{participantDisplay.count.toLocaleString('ko-KR')}{participantDisplay.label}</span>
+            </div>
+          )}
         </div>
         {!isHost && party.status === 'SCHEDULED' && (
           <Button

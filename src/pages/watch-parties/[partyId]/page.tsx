@@ -29,6 +29,7 @@ import type {
 } from '@/lib/types';
 import ChatPanel from './components/ChatPanel';
 import PlaybackPanel from './components/PlaybackPanel';
+import { getParticipantDisplay } from '@/lib/utils/watch-party';
 
 
 const STATUS_LABELS = {
@@ -455,11 +456,11 @@ export default function WatchPartyRoomPage() {
   }
 
   const chatDisabled = !connected || party.status === 'ENDED';
-  // 참여자 목록·서버 인원 모두 게스트만 셈(방장은 참여자로 저장 안 됨) → 방장 1명을 더해 표시
+  // 참여자 목록·서버 인원 모두 게스트만 셈(방장은 참여자로 저장 안 됨)
   const guestCount = participantsError || (participantsLoading && participants.length === 0)
     ? party.currentParticipantCount
     : participants.length;
-  const participantCount = guestCount + 1;
+  const participantDisplay = getParticipantDisplay(party.status, guestCount);
   const reminderRegistered = scheduledPartyIds.has(party.id);
   const reminderMutating = reminderMutatingPartyIds.has(party.id);
 
@@ -531,9 +532,9 @@ export default function WatchPartyRoomPage() {
 
                 <p className="mt-1 flex items-baseline gap-1 text-white">
                   <span className="text-[30px] font-bold leading-none tracking-tight">
-                    {participantCount.toLocaleString('ko-KR')}
+                    {(participantDisplay?.count ?? 0).toLocaleString('ko-KR')}
                   </span>
-                  <span className="text-body2-b text-gray-300">명 참여 중</span>
+                  <span className="text-body2-b text-gray-300">{participantDisplay?.label ?? '명 참여'}</span>
                 </p>
               </div>
             </div>
