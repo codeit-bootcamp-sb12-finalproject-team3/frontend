@@ -9,7 +9,9 @@ import {
   endWatchParty,
   getWatchParty,
   getWatchPartyChatMessages,
+  getWatchPartyJoinErrorMessage,
   getWatchPartyParticipants,
+  getWatchPartyReminderErrorMessage,
   joinWatchParty,
   kickWatchPartyParticipant,
   leaveWatchParty,
@@ -28,6 +30,7 @@ import type {
 } from '@/lib/types';
 import ChatPanel from './components/ChatPanel';
 import PlaybackPanel from './components/PlaybackPanel';
+import { getParticipantDisplay } from '@/lib/utils/watch-party';
 
 
 const STATUS_LABELS = {
@@ -232,13 +235,14 @@ export default function WatchPartyRoomPage() {
 
         hasLeft.current = false;
         setRoomReady(true);
+        if (partyEndedRef.current) return; // 종료된 방은 종료 화면만 보여 주므로 채팅·참여자는 불러오지 않음
         void loadChatHistory();
         void loadParticipants();
       } catch (requestError) {
         if (sequence !== roomRequestSequence.current) return;
         console.error(requestError);
         setRoomReady(false);
-        setRoomError('Watch Party에 참여하지 못했습니다. 참여 상태와 정원을 확인해주세요.');
+        setRoomError(getWatchPartyJoinErrorMessage(requestError));
       }
     };
 
@@ -294,7 +298,8 @@ export default function WatchPartyRoomPage() {
   }, []);
 
   const { connected, connecting, sendChat, controlPlayback } = useWatchPartyRealtime({
-    partyId: roomReady ? party?.id : undefined,
+    // 종료된 파티는 서버가 구독을 거절하므로 연결하지 않는다
+    partyId: roomReady && party?.status !== 'ENDED' ? party?.id : undefined,
     accessToken: authentication?.accessToken,
     onPlayback: handlePlayback,
     onChat: handleChat,
@@ -325,6 +330,7 @@ export default function WatchPartyRoomPage() {
   const navigationBlocker = useBlocker(({ currentLocation, nextLocation }) =>
     Boolean(
       party
+      && party.status !== 'ENDED'
       && !isHost
       && roomReady
       && !hasLeft.current
@@ -427,7 +433,8 @@ export default function WatchPartyRoomPage() {
       }
     } catch (requestError) {
       console.error(requestError);
-      toast.error(registered ? '알림을 해제하지 못했습니다.' : '알림을 등록하지 못했습니다.');
+      toast.error(getWatchPartyReminderErrorMessage(requestError, !registered));
+      void loadParty();
     }
   };
 
@@ -452,13 +459,29 @@ export default function WatchPartyRoomPage() {
       </div>
     );
   }
+  if (party.status === 'ENDED') {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-3 px-8 text-center">
+        <p className="text-body3-m text-gray-500">{party.content.title}</p>
+        <h1 className="text-title1-b text-white">{party.title}</h1>
+        <p className="mt-2 text-body2-m text-gray-300">종료된 파티입니다.</p>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/watch-parties')}
+          className="mt-4 border-gray-600 text-gray-200"
+        >
+          Watch Party 목록으로
+        </Button>
+      </div>
+    );
+  }
 
-  const chatDisabled = !connected || party.status === 'ENDED';
-  // 참여자 목록·서버 인원 모두 게스트만 셈(방장은 참여자로 저장 안 됨) → 방장 1명을 더해 표시
+  const chatDisabled = !connected
+  // 참여자 목록·서버 인원 모두 게스트만 셈(방장은 참여자로 저장 안 됨)
   const guestCount = participantsError || (participantsLoading && participants.length === 0)
     ? party.currentParticipantCount
     : participants.length;
-  const participantCount = guestCount + 1;
+  const participantDisplay = getParticipantDisplay(party.status, guestCount);
   const reminderRegistered = scheduledPartyIds.has(party.id);
   const reminderMutating = reminderMutatingPartyIds.has(party.id);
 
@@ -499,7 +522,7 @@ export default function WatchPartyRoomPage() {
           )}
           {isHost && party.status === 'SCHEDULED' && <Button onClick={handleStart} disabled={statusChanging} className="bg-pink-600 text-white hover:bg-pink-700">{statusChanging ? '처리 중...' : '파티 시작'}</Button>}
           {isHost && party.status === 'LIVE' && <Button variant="destructive" onClick={handleEnd} disabled={statusChanging}>{statusChanging ? '처리 중...' : '파티 종료'}</Button>}
-          {!isHost && party.status !== 'ENDED' && <Button variant="outline" onClick={handleLeave} disabled={leaving} className="border-gray-600 text-gray-200">{leaving ? '퇴장 중...' : '파티 퇴장'}</Button>}
+          {!isHost && <Button variant="outline" onClick={handleLeave} disabled={leaving} className="border-gray-600 text-gray-200">{leaving ? '퇴장 중...' : '파티 퇴장'}</Button>}
           </div>
         </div>
       </header>
@@ -530,9 +553,9 @@ export default function WatchPartyRoomPage() {
 
                 <p className="mt-1 flex items-baseline gap-1 text-white">
                   <span className="text-[30px] font-bold leading-none tracking-tight">
-                    {participantCount.toLocaleString('ko-KR')}
+                    {(participantDisplay?.count ?? 0).toLocaleString('ko-KR')}
                   </span>
-                  <span className="text-body2-b text-gray-300">명 참여 중</span>
+                  <span className="text-body2-b text-gray-300">{participantDisplay?.label ?? '명 참여'}</span>
                 </p>
               </div>
             </div>

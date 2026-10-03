@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
   cancelWatchPartyReminder,
   getScheduledWatchPartiesByMe,
+  isReminderAlreadyInState,
   setWatchPartyReminder,
 } from '@/lib/api/watch-parties';
 
@@ -54,7 +55,12 @@ const useWatchPartyReminderStore = create<WatchPartyReminderStore>((set, get) =>
     if (get().mutatingPartyIds.has(partyId)) return;
     set((state) => ({ mutatingPartyIds: new Set(state.mutatingPartyIds).add(partyId) }));
     try {
-      await request(partyId);
+      try {
+        await request(partyId);
+      } catch (error) {
+        // 이미 원하던 상태면 성공으로 보고 아래로 진행, 아니면 그대로 에러
+        if (!isReminderAlreadyInState(error, registered)) throw error;
+      }
       set((state) => {
         const next = new Set(state.scheduledPartyIds);
         if (registered) next.add(partyId);

@@ -9,6 +9,7 @@ import type {
   WatchPartySummaryResponse,
 } from '@/lib/types';
 import { isAxiosError } from 'axios';
+import { WATCH_PARTY_MAX_PARTICIPANTS_LIMIT } from '@/lib/config/watch-party';
 
 export const getWatchParties = async (
   params: WatchPartySearchParams,
@@ -95,8 +96,15 @@ export const endWatchParty = async (partyId: string): Promise<void> => {
 
 interface WatchPartyApiErrorResponse {
   code?: string;
-  details?: { opensAt?: string };
+  details?: { opensAt?: string; limit?: number; reason?: string };
 }
+
+/** 참가 실패 코드별 문구 (대기실 오픈 전은 시각이 들어가서 함수 안에서 따로 만든다) */
+const JOIN_ERROR_MESSAGES: Record<string, string> = {
+  WATCHPARTY_CAPACITY_FULL: '정원이 가득 찼어요.',
+  WATCHPARTY_ALREADY_ENDED: '이미 종료된 파티예요.',
+  WATCHPARTY_KICKED_CANNOT_REJOIN: '강퇴된 파티에는 다시 참여할 수 없어요.',
+};
 
 /** 참가 실패 시 보여줄 문구. 대기실 오픈 전이면 입장 가능 시각을 알려준다 */
 export const getWatchPartyJoinErrorMessage = (error: unknown): string => {
@@ -108,6 +116,36 @@ export const getWatchPartyJoinErrorMessage = (error: unknown): string => {
       });
       return `${opensAt}부터 입장할 수 있어요.`;
     }
+    if (data?.code && JOIN_ERROR_MESSAGES[data.code]) return JOIN_ERROR_MESSAGES[data.code];
   }
-  return 'Watch Party에 참여하지 못했습니다. 참여 상태와 정원을 확인해주세요.';
+  return 'Watch Party에 참여하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+};
+
+/** 생성 실패 시 보여줄 문구. 정원 상한 초과면 서버가 알려준 상한값으로 안내한다 */
+export const getWatchPartyCreateErrorMessage = (error: unknown): string => {
+  if (isAxiosError<WatchPartyApiErrorResponse>(error)) {
+    const data = error.response?.data;
+    if (data?.code === 'WATCHPARTY_MAX_PARTICIPANTS_EXCEEDED') {
+      const limit = data.details?.limit ?? WATCH_PARTY_MAX_PARTICIPANTS_LIMIT;
+      return `최대 ${limit.toLocaleString('ko-KR')}명까지 설정할 수 있어요.`;
+    }
+  }
+  return 'Watch Party 생성에 실패했습니다. 입력 내용을 확인해주세요.';
+};
+
+
+/** 리마인더 요청이 실패했지만 이미 원하던 상태인 경우(켜려는데 이미 켜짐, 끄려는데 이미 꺼짐) */
+export const isReminderAlreadyInState = (error: unknown, registered: boolean): boolean =>
+  isAxiosError<WatchPartyApiErrorResponse>(error)
+  && error.response?.data?.code === (registered
+    ? 'WATCHPARTY_REMINDER_ALREADY_EXISTS'
+    : 'WATCHPARTY_REMINDER_NOT_FOUND');
+
+/** 리마인더 실패 문구. 파티 상태 때문에 거절됐으면 서버가 준 이유를 보여준다 */
+export const getWatchPartyReminderErrorMessage = (error: unknown, registered: boolean): string => {
+  if (isAxiosError<WatchPartyApiErrorResponse>(error)) {
+    const data = error.response?.data;
+    if (data?.code === 'WATCHPARTY_INVALID_STATE' && data.details?.reason) return data.details.reason;
+  }
+  return registered ? '알림을 등록하지 못했습니다.' : '알림을 해제하지 못했습니다.';
 };
