@@ -9,6 +9,7 @@ import type {
   WatchPartySummaryResponse,
 } from '@/lib/types';
 import { isAxiosError } from 'axios';
+import { WATCH_PARTY_MAX_PARTICIPANTS_LIMIT } from '@/lib/config/watch-party';
 
 export const getWatchParties = async (
   params: WatchPartySearchParams,
@@ -95,7 +96,7 @@ export const endWatchParty = async (partyId: string): Promise<void> => {
 
 interface WatchPartyApiErrorResponse {
   code?: string;
-  details?: { opensAt?: string };
+  details?: { opensAt?: string; limit?: number };
 }
 
 /** 참가 실패 시 보여줄 문구. 대기실 오픈 전이면 입장 가능 시각을 알려준다 */
@@ -110,4 +111,16 @@ export const getWatchPartyJoinErrorMessage = (error: unknown): string => {
     }
   }
   return 'Watch Party에 참여하지 못했습니다. 참여 상태와 정원을 확인해주세요.';
+};
+
+/** 생성 실패 시 보여줄 문구. 정원 상한 초과면 서버가 알려준 상한값으로 안내한다 */
+export const getWatchPartyCreateErrorMessage = (error: unknown): string => {
+  if (isAxiosError<WatchPartyApiErrorResponse>(error)) {
+    const data = error.response?.data;
+    if (data?.code === 'WATCHPARTY_MAX_PARTICIPANTS_EXCEEDED') {
+      const limit = data.details?.limit ?? WATCH_PARTY_MAX_PARTICIPANTS_LIMIT;
+      return `최대 ${limit.toLocaleString('ko-KR')}명까지 설정할 수 있어요.`;
+    }
+  }
+  return 'Watch Party 생성에 실패했습니다. 입력 내용을 확인해주세요.';
 };

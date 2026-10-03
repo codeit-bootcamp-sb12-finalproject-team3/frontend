@@ -3,7 +3,8 @@ import { Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { createWatchParty } from '@/lib/api/watch-parties';
+import { createWatchParty, getWatchPartyCreateErrorMessage } from '@/lib/api/watch-parties';
+import { WATCH_PARTY_MAX_PARTICIPANTS_LIMIT } from '@/lib/config/watch-party';
 import { getContentEpisodes, getContents } from '@/lib/api/contents';
 import type {
   ContentSummaryResponse,
@@ -11,6 +12,7 @@ import type {
   EpisodeResponse,
   WatchPartyResponse,
 } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 interface CreateWatchPartyDialogProps {
   open: boolean;
@@ -42,6 +44,16 @@ const toLocalDateTimeMin = () => {
   const date = new Date(Date.now() + 60_000);
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
+
+// 회차 번호 한 칸 검사. 서버 @Positive와 맞춰 1화부터, 총 회차 수를 알면 그 이하
+const getEpisodeNumberError = (value: string, maxEpisode: number | null) => {
+  if (value === '') return null;
+  const episode = Number(value);
+  if (!Number.isInteger(episode)) return '소수점 없이 입력해 주세요.';
+  if (episode < 1) return '1화부터 입력할 수 있어요.';
+  if (maxEpisode != null && episode > maxEpisode) return `최대 ${maxEpisode}화까지 입력할 수 있어요.`;
+  return null;
 };
 
 export default function CreateWatchPartyDialog({
@@ -129,7 +141,8 @@ export default function CreateWatchPartyDialog({
     const end = Number(endEpisode);
     if (!seasonEpisodes || seasonEpisodes.contentId !== selectedContent.id
       || startEpisode === '' || endEpisode === ''
-      || !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) {
+      || !Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start
+      || (selectedContent.episodeCount != null && end > selectedContent.episodeCount)) {
       setSessionDurationMinutes('');
       return;
     }
@@ -142,7 +155,7 @@ export default function CreateWatchPartyDialog({
       total += runtime != null && runtime > 0 ? runtime : averageEpisodeRuntime;
     }
     setSessionDurationMinutes(String(total));
-  }, [selectedContent?.id, selectedContent?.type, seasonEpisodes, startEpisode, endEpisode, durationEdited, averageEpisodeRuntime]);
+  }, [selectedContent?.id, selectedContent?.type, selectedContent?.episodeCount, seasonEpisodes, startEpisode, endEpisode, durationEdited, averageEpisodeRuntime]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearchKeyword(searchInput.trim()), 300);
@@ -181,27 +194,45 @@ export default function CreateWatchPartyDialog({
 
   const isSeason = selectedContent?.type === 'tvSeason';
   const hasNext = Boolean(pages.movie?.hasNext || pages.tvSeries?.hasNext);
+  // 정원 칸 전용 검사. 칸 아래 문구와 [생성] 비활성화에 같이 쓴다
+  const maxParticipantsError = useMemo(() => {
+    if (maxParticipants.trim() === '') return null; // 비우면 기본값(최대 인원)으로 생성
+    const max = Number(maxParticipants);
+    if (!Number.isInteger(max)) return '소수점 없이 입력해 주세요.';
+    if (max < 1) return '1명 이상으로 설정해 주세요.';
+    if (max > WATCH_PARTY_MAX_PARTICIPANTS_LIMIT) return `최대 ${WATCH_PARTY_MAX_PARTICIPANTS_LIMIT.toLocaleString('ko-KR')}명까지 설정할 수 있어요.`;
+    return null;
+  }, [maxParticipants]);
+  // 회차 칸 전용 검사. 칸 아래 문구와 [생성] 비활성화에 같이 쓴다
+  const maxEpisode = selectedContent?.episodeCount ?? null;
+  const startEpisodeError = useMemo(
+    () => (isSeason ? getEpisodeNumberError(startEpisode, maxEpisode) : null),
+    [isSeason, startEpisode, maxEpisode],
+  );
+  const endEpisodeError = useMemo(() => {
+    if (!isSeason) return null;
+    const error = getEpisodeNumberError(endEpisode, maxEpisode);
+    if (error) return error;
+    if (startEpisode !== '' && endEpisode !== '' && !startEpisodeError
+      && Number(endEpisode) < Number(startEpisode)) {
+      return '시작 에피소드보다 작을 수 없어요.';
+    }
+    return null;
+  }, [isSeason, endEpisode, startEpisode, startEpisodeError, maxEpisode]);
   const validationMessage = useMemo(() => {
     if (!selectedContent) return '같이 볼 콘텐츠를 선택해주세요.';
     if (!title.trim()) return '파티 제목을 입력해주세요.';
     if (title.trim().length > 100) return '파티 제목은 100자 이하로 입력해주세요.';
     if (!scheduledAt || new Date(scheduledAt).getTime() <= Date.now()) return '미래의 시작 날짜와 시간을 입력해주세요.';
-    if (!Number.isInteger(Number(maxParticipants)) || Number(maxParticipants) <= 0) return '최대 참여 인원을 1명 이상 입력해주세요.';
-    if (!Number.isInteger(Number(sessionDurationMinutes)) || Number(sessionDurationMinutes) <= 0) return '세션 예정 시간을 1분 이상 입력해주세요.';
+    if (maxParticipantsError) return maxParticipantsError;
     if (isSeason) {
       if (startEpisode === '' || endEpisode === '') return '시작 및 종료 에피소드를 입력해주세요.';
-      const start = Number(startEpisode);
-      const end = Number(endEpisode);
-      if (!Number.isInteger(start) || start < 0 || !Number.isInteger(end) || end < start) {
-        return '에피소드 범위를 올바르게 입력해주세요.';
-      }
-      const maxEpisode = selectedContent.episodeCount;
-      if (maxEpisode != null && end > maxEpisode) {
-        return `종료 에피소드는 최대 ${maxEpisode}화까지 입력할 수 있습니다.`;
-      }
+      if (startEpisodeError) return `시작 에피소드: ${startEpisodeError}`;
+      if (endEpisodeError) return `종료 에피소드: ${endEpisodeError}`;
     }
+    if (!Number.isInteger(Number(sessionDurationMinutes)) || Number(sessionDurationMinutes) <= 0) return '세션 예정 시간을 1분 이상 입력해주세요.';
     return null;
-  }, [selectedContent, title, scheduledAt, maxParticipants, sessionDurationMinutes, isSeason, startEpisode, endEpisode]);
+  }, [selectedContent, title, scheduledAt, maxParticipantsError, sessionDurationMinutes, isSeason, startEpisode, endEpisode, startEpisodeError, endEpisodeError]);
 
   const reset = () => {
     requestSequence.current += 1;
@@ -278,7 +309,9 @@ export default function CreateWatchPartyDialog({
         title: title.trim(),
         ...(description.trim() ? { description: description.trim() } : {}),
         scheduledAt: new Date(scheduledAt).toISOString(),
-        maxParticipants: Number(maxParticipants),
+        maxParticipants: maxParticipants.trim() === ''
+          ? WATCH_PARTY_MAX_PARTICIPANTS_LIMIT
+          : Number(maxParticipants),
         sessionDurationMinutes: Number(sessionDurationMinutes),
         ...(isSeason ? { startEpisode: Number(startEpisode), endEpisode: Number(endEpisode) } : {}),
       });
@@ -288,7 +321,7 @@ export default function CreateWatchPartyDialog({
       onOpenChange(false);
     } catch (error) {
       console.error(error);
-      toast.error('Watch Party 생성에 실패했습니다. 입력 내용을 확인해주세요.');
+      toast.error(getWatchPartyCreateErrorMessage(error));
     } finally {
       setCreating(false);
     }
@@ -382,10 +415,15 @@ export default function CreateWatchPartyDialog({
                        onChange={(event) => setScheduledAt(event.target.value)} className={inputClassName}/>
               </label>
               <label className="flex flex-col gap-2 text-body3-sb text-gray-200">최대 참여 인원
-                <input type="number" min="1" step="1" value={maxParticipants}
-                       onChange={(event) => setMaxParticipants(event.target.value)} className={inputClassName}
-                       placeholder="예: 10"/>
+                <input type="number" min="1" max={WATCH_PARTY_MAX_PARTICIPANTS_LIMIT} step="1" value={maxParticipants}
+                       onChange={(event) => setMaxParticipants(event.target.value)}
+                       placeholder={`예: ${WATCH_PARTY_MAX_PARTICIPANTS_LIMIT}`}
+                       className={cn(inputClassName, maxParticipantsError && 'border-red-notification focus:border-red-notification')}/>
+                <span className={cn('text-caption1-m', maxParticipantsError ? 'text-red-notification' : 'text-gray-400')}>
+                  {maxParticipantsError ?? `비워 두면 최대 ${WATCH_PARTY_MAX_PARTICIPANTS_LIMIT.toLocaleString('ko-KR')}명으로 만들어져요.`}
+                </span>
               </label>
+
               <label className="flex flex-col gap-2 text-body3-sb text-gray-200">세션 예정 시간(분)
                 <input type="number" min="1" step="1" value={sessionDurationMinutes} onChange={(event) => {
                   setDurationEdited(true);
@@ -397,12 +435,20 @@ export default function CreateWatchPartyDialog({
               {isSeason && (
                 <>
                   <label className="flex flex-col gap-2 text-body3-sb text-gray-200">시작 에피소드
-                    <input type="number" min="0" step="1" value={startEpisode}
-                           onChange={(event) => setStartEpisode(event.target.value)} className={inputClassName}/>
+                    <input type="number" min="1" max={maxEpisode ?? undefined} step="1" value={startEpisode}
+                           onChange={(event) => setStartEpisode(event.target.value)}
+                           className={cn(inputClassName, startEpisodeError && 'border-red-notification focus:border-red-notification')}/>
+                    <span className={cn('text-caption1-m', startEpisodeError ? 'text-red-notification' : 'text-gray-400')}>
+                      {startEpisodeError ?? '1화부터 입력할 수 있어요.'}
+                    </span>
                   </label>
                   <label className="flex flex-col gap-2 text-body3-sb text-gray-200">종료 에피소드
-                    <input type="number" min="0" step="1" value={endEpisode}
-                           onChange={(event) => setEndEpisode(event.target.value)} className={inputClassName}/>
+                    <input type="number" min="1" max={maxEpisode ?? undefined} step="1" value={endEpisode}
+                           onChange={(event) => setEndEpisode(event.target.value)}
+                           className={cn(inputClassName, endEpisodeError && 'border-red-notification focus:border-red-notification')}/>
+                    <span className={cn('text-caption1-m', endEpisodeError ? 'text-red-notification' : 'text-gray-400')}>
+                      {endEpisodeError ?? (maxEpisode != null ? `최대 ${maxEpisode}화까지 입력할 수 있어요.` : '시작 에피소드 이후 회차를 입력해 주세요.')}
+                    </span>
                   </label>
                 </>
               )}
