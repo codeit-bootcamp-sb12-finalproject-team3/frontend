@@ -58,8 +58,8 @@ export default function ContentRelatedSections({ content }: ContentRelatedSectio
     try {
       await joinWatchParty(party.id);
       navigate(`/watch-parties/${party.id}`);
-    } catch {
-      toast.error('Watch Party에 참여하지 못했습니다.');
+    } catch (error) {
+      toast.error(getWatchPartyJoinErrorMessage(error));
     } finally {
       setJoiningPartyId(null);
     }

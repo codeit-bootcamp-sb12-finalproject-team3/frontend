@@ -42,7 +42,6 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
   const fetchReminders = useWatchPartyReminderStore((state) => state.fetch);
   const setReminder = useWatchPartyReminderStore((state) => state.setReminder);
   const cancelReminder = useWatchPartyReminderStore((state) => state.cancelReminder);
-  const full = party.currentParticipantCount >= party.maxParticipants;
   const ended = party.status === 'ENDED';
   const isHost = party.host.userId === currentUserId;
   const reminderRegistered = scheduledPartyIds.has(party.id);
@@ -119,10 +118,10 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
         <Button
           type="button"
           onClick={() => onJoin(party)}
-          disabled={joining || full || ended}
+          disabled={joining || ended}
           className="h-11 w-full rounded-xl bg-pink-600 text-body3-b text-white hover:bg-pink-700"
         >
-          {joining ? '참여 중...' : ended ? '종료된 파티' : full ? '정원 마감' : '참여하기'}
+          {joining ? '참여 중...' : ended ? '종료된 파티' : isHost ? '입장하기' : '참여하기'}
         </Button>
       </div>
     </article>

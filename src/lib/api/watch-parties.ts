@@ -99,6 +99,13 @@ interface WatchPartyApiErrorResponse {
   details?: { opensAt?: string; limit?: number };
 }
 
+/** 참가 실패 코드별 문구 (대기실 오픈 전은 시각이 들어가서 함수 안에서 따로 만든다) */
+const JOIN_ERROR_MESSAGES: Record<string, string> = {
+  WATCHPARTY_CAPACITY_FULL: '정원이 가득 찼어요.',
+  WATCHPARTY_ALREADY_ENDED: '이미 종료된 파티예요.',
+  WATCHPARTY_KICKED_CANNOT_REJOIN: '강퇴된 파티에는 다시 참여할 수 없어요.',
+};
+
 /** 참가 실패 시 보여줄 문구. 대기실 오픈 전이면 입장 가능 시각을 알려준다 */
 export const getWatchPartyJoinErrorMessage = (error: unknown): string => {
   if (isAxiosError<WatchPartyApiErrorResponse>(error)) {
@@ -109,8 +116,9 @@ export const getWatchPartyJoinErrorMessage = (error: unknown): string => {
       });
       return `${opensAt}부터 입장할 수 있어요.`;
     }
+    if (data?.code && JOIN_ERROR_MESSAGES[data.code]) return JOIN_ERROR_MESSAGES[data.code];
   }
-  return 'Watch Party에 참여하지 못했습니다. 참여 상태와 정원을 확인해주세요.';
+  return 'Watch Party에 참여하지 못했습니다. 잠시 후 다시 시도해 주세요.';
 };
 
 /** 생성 실패 시 보여줄 문구. 정원 상한 초과면 서버가 알려준 상한값으로 안내한다 */

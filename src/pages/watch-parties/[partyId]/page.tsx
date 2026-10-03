@@ -9,6 +9,7 @@ import {
   endWatchParty,
   getWatchParty,
   getWatchPartyChatMessages,
+  getWatchPartyJoinErrorMessage,
   getWatchPartyParticipants,
   joinWatchParty,
   kickWatchPartyParticipant,
@@ -238,7 +239,7 @@ export default function WatchPartyRoomPage() {
         if (sequence !== roomRequestSequence.current) return;
         console.error(requestError);
         setRoomReady(false);
-        setRoomError('Watch Party에 참여하지 못했습니다. 참여 상태와 정원을 확인해주세요.');
+        setRoomError(getWatchPartyJoinErrorMessage(requestError));
       }
     };
 
