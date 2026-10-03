@@ -11,6 +11,7 @@ import {
   getWatchPartyChatMessages,
   getWatchPartyJoinErrorMessage,
   getWatchPartyParticipants,
+  getWatchPartyReminderErrorMessage,
   joinWatchParty,
   kickWatchPartyParticipant,
   leaveWatchParty,
@@ -429,7 +430,8 @@ export default function WatchPartyRoomPage() {
       }
     } catch (requestError) {
       console.error(requestError);
-      toast.error(registered ? '알림을 해제하지 못했습니다.' : '알림을 등록하지 못했습니다.');
+      toast.error(getWatchPartyReminderErrorMessage(requestError, !registered));
+      void loadParty();
     }
   };
 

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useWatchPartyReminderStore from '@/lib/stores/useWatchPartyReminderStore';
 import type { WatchPartyStatus, WatchPartySummaryResponse } from '@/lib/types';
 import { getParticipantDisplay } from '@/lib/utils/watch-party';
+import { getWatchPartyReminderErrorMessage } from '@/lib/api/watch-parties';
 
 const STATUS_LABELS: Record<WatchPartyStatus, string> = {
   LIVE: '진행 중',
@@ -64,7 +65,7 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
       }
     } catch (error) {
       console.error(error);
-      toast.error(reminderRegistered ? '알림을 해제하지 못했습니다.' : '알림을 등록하지 못했습니다.');
+      toast.error(getWatchPartyReminderErrorMessage(error, !reminderRegistered));
     }
   };
 
