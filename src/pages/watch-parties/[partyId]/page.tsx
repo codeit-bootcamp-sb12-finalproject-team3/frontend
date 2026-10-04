@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBlocker, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Bell, BellRing, CalendarClock, Clock3, Users, } from 'lucide-react';
+import { ArrowLeft, Bell, BellRing, CalendarClock, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import icProfileDefault from '@/assets/ic_profile_default.svg';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import type {
   WatchPartyResponse,
 } from '@/lib/types';
 import ChatPanel from './components/ChatPanel';
+import ParticipantPanel from './components/ParticipantPanel';
 import PlaybackPanel from './components/PlaybackPanel';
 import { getParticipantDisplay } from '@/lib/utils/watch-party';
 
@@ -541,34 +542,19 @@ export default function WatchPartyRoomPage() {
           </div>
 
           <div className="mt-8 w-full max-w-xl border-t border-gray-800 pt-6">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex size-10 items-center justify-center rounded-full bg-gray-900 text-gray-300">
-                <Users className="size-5" />
-              </span>
-
-              <div className="min-w-0">
-                <p className="text-body3-m text-gray-500">
-                  함께 보는 중
-                </p>
-
-                <p className="mt-1 flex items-baseline gap-1 text-white">
-                  <span className="text-[30px] font-bold leading-none tracking-tight">
-                    {(participantDisplay?.count ?? 0).toLocaleString('ko-KR')}
-                  </span>
-                  <span className="text-body2-b text-gray-300">{participantDisplay?.label ?? '명 참여'}</span>
-                </p>
-              </div>
-            </div>
-
-            {participantsError && (
-              <button
-                type="button"
-                onClick={() => void loadParticipants()}
-                className="mt-3 text-caption1-b text-pink-300 hover:text-pink-200"
-              >
-                참여자 정보를 다시 불러오기
-              </button>
-            )}
+            <ParticipantPanel
+              host={party.host}
+              participants={participants}
+              participantCount={participantDisplay?.count ?? 0}
+              participantLabel={participantDisplay?.label ?? '명 참여'}
+              currentUserId={authentication?.userDto.id}
+              isHost={isHost}
+              loading={participantsLoading}
+              error={participantsError}
+              kickingUserId={kickingUserId}
+              onRetry={() => void loadParticipants()}
+              onKick={(userId) => void handleKick(userId)}
+            />
           </div>
 
           <div className="mt-8 w-full max-w-xl border-t border-gray-800 pt-5 text-body3-m text-gray-500">

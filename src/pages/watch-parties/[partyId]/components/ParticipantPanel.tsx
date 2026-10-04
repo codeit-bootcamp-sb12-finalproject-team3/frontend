@@ -14,6 +14,7 @@ interface ParticipantPanelProps {
   host: WatchPartyHostSummary;
   participants: WatchPartyParticipantResponse[];
   participantCount: number;
+  participantLabel: string;
   currentUserId?: string;
   isHost: boolean;
   loading: boolean;
@@ -63,13 +64,13 @@ function ParticipantAvatar({ user, host, current, canKick, kicking, onKick }: Pa
   );
 }
 
-export default function ParticipantPanel({ host, participants, participantCount, currentUserId, isHost, loading, error, kickingUserId, onRetry, onKick }: ParticipantPanelProps) {
+export default function ParticipantPanel({ host, participants, participantCount, participantLabel, currentUserId, isHost, loading, error, kickingUserId, onRetry, onKick }: ParticipantPanelProps) {
   const [kickTarget, setKickTarget] = useState<WatchPartyParticipantResponse | null>(null);
 
   return (
     <section className="w-full">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-body2-b text-white">함께 보는 중 · {participantCount}명</h2>
+        <h2 className="text-body2-b text-white">{participantCount.toLocaleString('ko-KR')}{participantLabel}</h2>
         {loading && <span className="text-caption1-m text-gray-500">업데이트 중</span>}
       </div>
 

@@ -137,10 +137,17 @@ export default function CreateWatchPartyDialog({
 
   useEffect(() => {
     if (selectedContent?.type !== 'tvSeason' || durationEdited) return;
-    const start = Number(startEpisode);
-    const end = Number(endEpisode);
-    if (!seasonEpisodes || seasonEpisodes.contentId !== selectedContent.id
-      || startEpisode === '' || endEpisode === ''
+    if (!seasonEpisodes || seasonEpisodes.contentId !== selectedContent.id) {
+      setSessionDurationMinutes('');
+      return;
+    }
+    // 시작·종료를 둘 다 비우면 시즌 전체(1화 ~ 마지막 화). 서버도 둘 다 null이면 시즌 전체로 받는다
+    const wholeSeason = startEpisode === '' && endEpisode === '';
+    const lastEpisode = selectedContent.episodeCount
+      ?? Math.max(0, ...seasonEpisodes.episodes.map((episode) => episode.episodeNumber));
+    const start = wholeSeason ? 1 : Number(startEpisode);
+    const end = wholeSeason ? lastEpisode : Number(endEpisode);
+    if ((!wholeSeason && (startEpisode === '' || endEpisode === ''))
       || !Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start
       || (selectedContent.episodeCount != null && end > selectedContent.episodeCount)) {
       setSessionDurationMinutes('');
@@ -205,12 +212,16 @@ export default function CreateWatchPartyDialog({
   }, [maxParticipants]);
   // 회차 칸 전용 검사. 칸 아래 문구와 [생성] 비활성화에 같이 쓴다
   const maxEpisode = selectedContent?.episodeCount ?? null;
-  const startEpisodeError = useMemo(
-    () => (isSeason ? getEpisodeNumberError(startEpisode, maxEpisode) : null),
-    [isSeason, startEpisode, maxEpisode],
-  );
+  const startEpisodeError = useMemo(() => {
+    if (!isSeason) return null;
+    // 종료만 넣고 시작을 비운 경우. 둘 다 비우면 시즌 전체라 통과
+    if (startEpisode === '' && endEpisode !== '') return '시작·종료를 둘 다 넣거나 둘 다 비워 주세요.';
+    return getEpisodeNumberError(startEpisode, maxEpisode);
+  }, [isSeason, startEpisode, endEpisode, maxEpisode]);
+
   const endEpisodeError = useMemo(() => {
     if (!isSeason) return null;
+    if (endEpisode === '' && startEpisode !== '') return '시작·종료를 둘 다 넣거나 둘 다 비워 주세요.';
     const error = getEpisodeNumberError(endEpisode, maxEpisode);
     if (error) return error;
     if (startEpisode !== '' && endEpisode !== '' && !startEpisodeError
@@ -226,13 +237,12 @@ export default function CreateWatchPartyDialog({
     if (!scheduledAt || new Date(scheduledAt).getTime() <= Date.now()) return '미래의 시작 날짜와 시간을 입력해주세요.';
     if (maxParticipantsError) return maxParticipantsError;
     if (isSeason) {
-      if (startEpisode === '' || endEpisode === '') return '시작 및 종료 에피소드를 입력해주세요.';
       if (startEpisodeError) return `시작 에피소드: ${startEpisodeError}`;
       if (endEpisodeError) return `종료 에피소드: ${endEpisodeError}`;
     }
     if (!Number.isInteger(Number(sessionDurationMinutes)) || Number(sessionDurationMinutes) <= 0) return '세션 예정 시간을 1분 이상 입력해주세요.';
     return null;
-  }, [selectedContent, title, scheduledAt, maxParticipantsError, sessionDurationMinutes, isSeason, startEpisode, endEpisode, startEpisodeError, endEpisodeError]);
+  }, [selectedContent, title, scheduledAt, maxParticipantsError, sessionDurationMinutes, isSeason, startEpisodeError, endEpisodeError]);
 
   const reset = () => {
     requestSequence.current += 1;
@@ -313,7 +323,9 @@ export default function CreateWatchPartyDialog({
           ? WATCH_PARTY_MAX_PARTICIPANTS_LIMIT
           : Number(maxParticipants),
         sessionDurationMinutes: Number(sessionDurationMinutes),
-        ...(isSeason ? { startEpisode: Number(startEpisode), endEpisode: Number(endEpisode) } : {}),
+        ...(isSeason && startEpisode !== '' && endEpisode !== ''
+          ? { startEpisode: Number(startEpisode), endEpisode: Number(endEpisode) }
+          : {}),
       });
       toast.success('Watch Party를 만들었습니다.');
       onCreated(party);
@@ -439,7 +451,7 @@ export default function CreateWatchPartyDialog({
                            onChange={(event) => setStartEpisode(event.target.value)}
                            className={cn(inputClassName, startEpisodeError && 'border-red-notification focus:border-red-notification')}/>
                     <span className={cn('text-caption1-m', startEpisodeError ? 'text-red-notification' : 'text-gray-400')}>
-                      {startEpisodeError ?? '1화부터 입력할 수 있어요.'}
+                      {startEpisodeError ?? '1화부터 입력할 수 있어요. 둘 다 비우면 시즌 전체예요.'}
                     </span>
                   </label>
                   <label className="flex flex-col gap-2 text-body3-sb text-gray-200">종료 에피소드
