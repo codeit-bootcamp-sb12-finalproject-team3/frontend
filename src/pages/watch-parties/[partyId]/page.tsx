@@ -298,7 +298,7 @@ export default function WatchPartyRoomPage() {
     toast.error(message || '실시간 요청을 처리하지 못했습니다.');
   }, []);
 
-  const { connected, connecting, sendChat, controlPlayback } = useWatchPartyRealtime({
+  const { connected, sendChat, controlPlayback } = useWatchPartyRealtime({
     // 종료된 파티는 서버가 구독을 거절하므로 연결하지 않는다
     partyId: roomReady && party?.status !== 'ENDED' ? party?.id : undefined,
     accessToken: authentication?.accessToken,
@@ -500,6 +500,12 @@ export default function WatchPartyRoomPage() {
               <span className="truncate text-body3-m text-gray-500">{party.content.title}</span>
             </div>
             <h1 className="mt-2 truncate text-title1-b text-white sm:text-header2-b">{party.title}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-body3-m text-gray-500">
+              <span className="flex items-center gap-1.5"><CalendarClock className="size-4" />{new Date(party.scheduledAt).toLocaleString('ko-KR')}</span>
+              <span className="flex items-center gap-1.5"><Clock3 className="size-4" />예정 시간 {party.sessionDurationMinutes}분</span>
+              {party.startEpisode !== null && <span>에피소드 {party.startEpisode} ~ {party.endEpisode}</span>}
+            </div>
+            {party.description && <p className="mt-1 line-clamp-1 text-body3-m text-gray-500">{party.description}</p>}
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
             <div className="flex items-center gap-2 border-r border-gray-800 pr-3">
@@ -528,17 +534,22 @@ export default function WatchPartyRoomPage() {
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(400px,40%)_minmax(0,60%)] lg:overflow-hidden">
-        <section className="flex flex-col items-center overflow-y-auto px-6 py-8 sm:px-10 lg:px-8 xl:px-12">
-          <div className="w-full max-w-[330px] overflow-hidden rounded-2xl bg-gray-900 shadow-2xl shadow-black/30">
-            <div className="aspect-[4/3]">
-              {party.content.thumbnailUrl ? <img src={party.content.thumbnailUrl} alt={party.content.title} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-body3-m text-gray-500">이미지 없음</div>}
-            </div>
-          </div>
-          <p className="mt-5 max-w-full truncate text-center text-body1-b text-gray-100">{party.content.title}</p>
-
-          <div className="mt-7 w-full max-w-xl">
-          <PlaybackPanel state={playback} isHost={isHost} connected={connected} onControl={controlPlayback} />
+      <main className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(400px,40%)_minmax(0,60%)] lg:overflow-hidden scrollbar-subtle">
+        <section className="flex flex-col items-center overflow-y-auto px-6 py-8 sm:px-10 lg:px-6 scrollbar-subtle">
+          <div className="w-full max-w-xl">
+            <PlaybackPanel
+              state={playback}
+              isHost={isHost}
+              connected={connected}
+              onControl={controlPlayback}
+              poster={
+                <div className="shrink-0 overflow-hidden rounded-xl bg-gray-900 shadow-lg shadow-black/30">
+                  {party.content.thumbnailUrl
+                    ? <img src={party.content.thumbnailUrl} alt={party.content.title} className="block h-auto max-h-30 w-auto max-w-28 2xl:max-h-44 2xl:max-w-44" />
+                    : <div className="flex aspect-[4/3] w-28 items-center justify-center text-caption1-m text-gray-500">이미지 없음</div>}
+                </div>
+              }
+            />
           </div>
 
           <div className="mt-8 w-full max-w-xl border-t border-gray-800 pt-6">
@@ -557,15 +568,6 @@ export default function WatchPartyRoomPage() {
             />
           </div>
 
-          <div className="mt-8 w-full max-w-xl border-t border-gray-800 pt-5 text-body3-m text-gray-500">
-            {party.description && <p className="mb-4 leading-6">{party.description}</p>}
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              <span className="flex items-center gap-2"><CalendarClock className="size-4" />{new Date(party.scheduledAt).toLocaleString('ko-KR')}</span>
-              <span className="flex items-center gap-2"><Clock3 className="size-4" />예정 시간 {party.sessionDurationMinutes}분</span>
-              {party.startEpisode !== null && <span>에피소드 {party.startEpisode} ~ {party.endEpisode}</span>}
-            </div>
-            {connecting && <p className="mt-3 text-caption1-m text-gray-500">실시간 서버에 연결하는 중입니다.</p>}
-          </div>
         </section>
 
         <section className="min-h-0 border-t border-gray-800 lg:border-l lg:border-t-0">
