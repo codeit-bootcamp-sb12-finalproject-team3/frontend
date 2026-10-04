@@ -310,3 +310,9 @@ body {
     letter-spacing: -0.01375rem; /* -0.22px */
   }
 }
+
+/* 어두운 배경에서 튀지 않는 얇은 스크롤바. 손잡이 gray-800, 트랙은 투명 */
+@utility scrollbar-subtle {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-800) transparent;
+}
