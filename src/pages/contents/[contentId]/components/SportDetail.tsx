@@ -132,7 +132,7 @@ export default function SportDetail({ content, selectedReview }: { content: Cont
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button type="button" onClick={() => setReviewOpen(true)} className="flex h-12 items-center gap-2 rounded-xl border border-gray-800 bg-gray-900 px-4 text-body3-sb text-gray-200 transition hover:border-pink-500/40"><Star className="size-[18px] text-pink-400" fill="currentColor" /><strong>{content.averageRating.toFixed(1)}</strong><span className="text-gray-500">리뷰 {content.reviewCount.toLocaleString()}</span></button>
-              <button type="button" onClick={toggleLike} disabled={likeLoading} className={`flex h-12 items-center gap-2 rounded-xl border px-4 text-body3-sb transition ${liked ? 'border-pink-500/40 bg-pink-500/10 text-pink-300' : 'border-gray-800 bg-gray-900 text-gray-300 hover:border-gray-700'}`}><Heart className="size-[18px]" fill={liked ? 'currentColor' : 'none'} />좋아요 {likeCount.toLocaleString()}</button>
+              <button type="button" onClick={toggleLike} disabled={likeLoading} className={`flex h-12 items-center gap-2 rounded-xl border px-4 text-body3-sb transition ${liked ? 'border-[#FF4A64]/40 bg-[#FF4A64]/10 text-[#FF8C9D]' : 'border-gray-800 bg-gray-900 text-gray-300 hover:border-gray-700'}`}><Heart className="size-[18px]" fill={liked ? 'currentColor' : 'none'} />좋아요 <span className="text-[#FF8C9D]">{likeCount.toLocaleString()}</span></button>
             </div>
           </div>
         </div>

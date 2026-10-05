@@ -136,7 +136,7 @@ export default function ContentInfo({ content, selectedReview }: ContentInfoProp
           <p className="mt-6 text-body3-m-150 leading-6 text-gray-200">{content.description || '아직 등록된 작품 소개가 없습니다.'}</p>
 
           <div className="mt-7">
-            <button type="button" onClick={handleLike} disabled={likeLoading} className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl border px-4 text-body3-sb transition ${liked ? 'border-pink-500/40 bg-pink-500/10 text-pink-300' : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-gray-600'}`}><Heart className="size-[18px]" fill={liked ? 'currentColor' : 'none'} />좋아요 {likeCount.toLocaleString()}</button>
+            <button type="button" onClick={handleLike} disabled={likeLoading} className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl border px-4 text-body3-sb transition ${liked ? 'border-[#FF4A64]/40 bg-[#FF4A64]/10 text-[#FF8C9D]' : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-gray-600'}`}><Heart className="size-[18px]" fill={liked ? 'currentColor' : 'none'} />좋아요 <span className="text-[#FF8C9D]">{likeCount.toLocaleString()}</span></button>
           </div>
         </div>
       </article>
