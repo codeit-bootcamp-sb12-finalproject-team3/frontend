@@ -33,7 +33,7 @@ import ParticipantPanel from './components/ParticipantPanel';
 import PlaybackPanel from './components/PlaybackPanel';
 import { getParticipantDisplay } from '@/lib/utils/watch-party';
 
-
+const MAX_CHAT_MESSAGES = 300;
 const STATUS_LABELS = {
   SCHEDULED: '예정',
   LIVE: '진행 중',
@@ -72,7 +72,33 @@ const mergeChatMessages = (
       sender: message.sender ?? existing?.sender,
     });
   });
-  return [...unique.values()].sort((left, right) => left.sentAt - right.sentAt);
+  return [...unique.values()]
+    .sort((left, right) => left.sentAt - right.sentAt)
+    .slice(-MAX_CHAT_MESSAGES);
+};
+const appendChatMessage = (
+  current: WatchPartyChatMessage[],
+  incoming: WatchPartyChatMessage,
+) => {
+  const incomingKey = chatMessageKey(incoming);
+  const existingIndex = current.findIndex(
+    (message) => chatMessageKey(message) === incomingKey,
+  );
+
+  if (existingIndex >= 0) {
+    const next = [...current];
+    const existing = next[existingIndex];
+
+    next[existingIndex] = {
+      ...existing,
+      ...incoming,
+      sender: incoming.sender ?? existing.sender,
+    };
+
+    return next;
+  }
+
+  return [...current, incoming].slice(-MAX_CHAT_MESSAGES);
 };
 
 export default function WatchPartyRoomPage() {
@@ -268,9 +294,18 @@ export default function WatchPartyRoomPage() {
   }, []);
 
   const handleChat = useCallback((message: WatchPartyChatMessage) => {
-    const sender = message.sender ?? authorsByIdRef.current.get(message.senderId);
+    const sender =
+      message.sender ??
+      authorsByIdRef.current.get(message.senderId);
+
     if (sender) rememberAuthors([sender]);
-    setMessages((current) => mergeChatMessages(current, [{ ...message, sender }]));
+
+    setMessages((current) =>
+      appendChatMessage(current, {
+        ...message,
+        sender,
+      }),
+    );
   }, [rememberAuthors]);
 
   const handleParticipantChanged = useCallback((message: WatchPartyParticipantChangedMessage) => {

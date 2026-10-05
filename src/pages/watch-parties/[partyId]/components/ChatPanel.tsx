@@ -1,4 +1,5 @@
 import {
+  memo,
   useEffect,
   useMemo,
   useRef,
@@ -39,22 +40,32 @@ interface ChatPanelProps {
   onKick: (userId: string) => void;
 }
 
-export default function ChatPanel({
+interface ChatMessageListProps {
+  messages: WatchPartyChatMessage[];
+  authorsById: ReadonlyMap<string, WatchPartyHostSummary>;
+  usersById: ReadonlyMap<string, WatchPartyHostSummary>;
+  activeParticipantIds: ReadonlySet<string>;
+  host: WatchPartyHostSummary;
+  currentUserId?: string;
+  isHost: boolean;
+  kickingUserId: string | null;
+  historyLoading: boolean;
+  onKick: (userId: string) => void;
+}
+
+const ChatMessageList = memo(function ChatMessageList({
   messages,
-  participants,
   authorsById,
+  usersById,
+  activeParticipantIds,
   host,
   currentUserId,
   isHost,
   kickingUserId,
-  connected,
-  disabled,
   historyLoading,
-  onSend,
   onKick,
-}: ChatPanelProps) {
+}: ChatMessageListProps) {
   const navigate = useNavigate();
-  const [content, setContent] = useState('');
   const [kickTarget, setKickTarget] =
     useState<WatchPartyHostSummary | null>(null);
 
@@ -63,38 +74,23 @@ export default function ChatPanel({
   const isNearBottom = useRef(true);
   const initialScrollCompleted = useRef(false);
 
-  const usersById = useMemo(() => {
-    const users = new Map<string, WatchPartyHostSummary>();
-
-    users.set(host.userId, host);
-
-    participants.forEach(({ user }) => {
-      users.set(user.userId, user);
-    });
-
-    return users;
-  }, [host, participants]);
-
-  const activeParticipantIds = useMemo(
-    () => new Set(participants.map(({ user }) => user.userId)),
-    [participants],
-  );
-
   useEffect(() => {
     if (historyLoading) return;
 
     if (!initialScrollCompleted.current) {
       initialScrollCompleted.current = true;
+
       endRef.current?.scrollIntoView({
         behavior: 'auto',
         block: 'end',
       });
+
       return;
     }
 
     if (isNearBottom.current) {
       endRef.current?.scrollIntoView({
-        behavior: 'smooth',
+        behavior: 'auto',
         block: 'end',
       });
     }
@@ -110,34 +106,8 @@ export default function ChatPanel({
       80;
   };
 
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-
-    const trimmed = content.trim();
-
-    if (!trimmed || trimmed.length > 500 || disabled) {
-      return;
-    }
-
-    if (onSend(trimmed)) {
-      setContent('');
-    }
-  };
-
   return (
-    <section className="flex h-[620px] min-h-0 flex-col bg-gray-950/10 lg:h-full">
-      <div className="shrink-0 border-b border-gray-800 px-6 py-4 sm:px-8">
-        <div>
-          <h2 className="text-title2-b text-white">
-            실시간 채팅
-          </h2>
-
-          <p className="mt-1 text-caption1-m text-gray-500">
-            함께 보고 있는 사람들과 대화해보세요.
-          </p>
-        </div>
-      </div>
-
+    <>
       <div
         ref={scrollRef}
         onScroll={handleScroll}
@@ -157,8 +127,10 @@ export default function ChatPanel({
               message.sender ??
               authorsById.get(message.senderId) ??
               usersById.get(message.senderId);
+
             const senderIsHost =
               message.senderId === host.userId;
+
             const mine =
               message.senderId === currentUserId;
 
@@ -172,93 +144,100 @@ export default function ChatPanel({
             return (
               <div
                 key={`${message.sentAt}-${message.senderId}-${index}`}
-                className={`flex items-start gap-3 ${mine ? 'justify-end' : ''}`}
+                className={`flex items-start gap-3 ${
+                  mine ? 'justify-end' : ''
+                }`}
               >
-                {!mine && (user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="shrink-0 rounded-full outline-none ring-pink-500 transition hover:ring-2 focus-visible:ring-2"
-                        aria-label={`${user.name} 프로필 보기`}
-                      >
-                        <img
-                          src={
-                            user.profileImageUrl ||
-                            icProfileDefault
-                          }
-                          alt=""
-                          className="size-10 rounded-full object-cover"
-                        />
-                      </button>
-                    </DropdownMenuTrigger>
-
-                    <DropdownMenuContent
-                      align="start"
-                      sideOffset={8}
-                      className="w-56 border-gray-700 bg-gray-900 p-3 text-gray-100"
-                    >
-                      <div className="flex items-center gap-3 px-1 py-1">
-                        <img
-                          src={
-                            user.profileImageUrl ||
-                            icProfileDefault
-                          }
-                          alt=""
-                          className="size-11 rounded-full object-cover"
-                        />
-
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-body3-b text-white">
-                            {user.name}
-                          </p>
-
-                          <p className="mt-0.5 text-caption1-m text-gray-500">
-                            {mine
-                              ? '나'
-                              : senderIsHost
-                                ? '방장'
-                                : '참여자'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <DropdownMenuSeparator className="my-2 bg-gray-700" />
-
-                      <DropdownMenuItem
-                        onSelect={() => navigate(`/profiles/${user.userId}`)}
-                        className="cursor-pointer text-gray-200 focus:bg-gray-800 focus:text-white"
-                      >
-                        <UserRound className="size-4" />
-                        프로필 보기
-                      </DropdownMenuItem>
-
-                      {canKick && (
-                        <DropdownMenuItem
-                          disabled={
-                            kickingUserId === user.userId
-                          }
-                          onSelect={() =>
-                            setKickTarget(user)
-                          }
-                          className="mt-2 cursor-pointer text-red-notification"
+                {!mine &&
+                  (user ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="shrink-0 rounded-full outline-none ring-pink-500 transition hover:ring-2 focus-visible:ring-2"
+                          aria-label={`${user.name} 프로필 보기`}
                         >
-                          <UserRoundX className="size-4" />
+                          <img
+                            src={
+                              user.profileImageUrl ||
+                              icProfileDefault
+                            }
+                            alt=""
+                            className="size-10 rounded-full object-cover"
+                          />
+                        </button>
+                      </DropdownMenuTrigger>
 
-                          {kickingUserId === user.userId
-                            ? '강퇴 중...'
-                            : '강퇴하기'}
+                      <DropdownMenuContent
+                        align="start"
+                        sideOffset={8}
+                        className="w-56 border-gray-700 bg-gray-900 p-3 text-gray-100"
+                      >
+                        <div className="flex items-center gap-3 px-1 py-1">
+                          <img
+                            src={
+                              user.profileImageUrl ||
+                              icProfileDefault
+                            }
+                            alt=""
+                            className="size-11 rounded-full object-cover"
+                          />
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-body3-b text-white">
+                              {user.name}
+                            </p>
+
+                            <p className="mt-0.5 text-caption1-m text-gray-500">
+                              {mine
+                                ? '나'
+                                : senderIsHost
+                                  ? '방장'
+                                  : '참여자'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <DropdownMenuSeparator className="my-2 bg-gray-700" />
+
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            navigate(
+                              `/profiles/${user.userId}`,
+                            )
+                          }
+                          className="cursor-pointer text-gray-200 focus:bg-gray-800 focus:text-white"
+                        >
+                          <UserRound className="size-4" />
+                          프로필 보기
                         </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <img
-                    src={icProfileDefault}
-                    alt=""
-                    className="size-10 shrink-0 rounded-full object-cover opacity-70"
-                  />
-                ))}
+
+                        {canKick && (
+                          <DropdownMenuItem
+                            disabled={
+                              kickingUserId === user.userId
+                            }
+                            onSelect={() =>
+                              setKickTarget(user)
+                            }
+                            className="mt-2 cursor-pointer text-red-notification"
+                          >
+                            <UserRoundX className="size-4" />
+
+                            {kickingUserId === user.userId
+                              ? '강퇴 중...'
+                              : '강퇴하기'}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <img
+                      src={icProfileDefault}
+                      alt=""
+                      className="size-10 shrink-0 rounded-full object-cover opacity-70"
+                    />
+                  ))}
 
                 <div className="min-w-0 max-w-[78%]">
                   {!mine && (
@@ -273,7 +252,11 @@ export default function ChatPanel({
                     </div>
                   )}
 
-                  <div className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : ''}`}>
+                  <div
+                    className={`flex items-end gap-2 ${
+                      mine ? 'flex-row-reverse' : ''
+                    }`}
+                  >
                     <div
                       className={`w-fit max-w-full rounded-2xl px-4 py-2.5 ${
                         mine
@@ -304,6 +287,114 @@ export default function ChatPanel({
         <div ref={endRef} />
       </div>
 
+      <ConfirmDialog
+        open={kickTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setKickTarget(null);
+          }
+        }}
+        title="참여자 강퇴"
+        description={`${
+          kickTarget?.name ?? '선택한 참여자'
+        }님을 Watch Party에서 강퇴할까요?`}
+        confirmText="강퇴"
+        cancelText="취소"
+        variant="destructive"
+        onConfirm={() => {
+          if (kickTarget) {
+            onKick(kickTarget.userId);
+          }
+        }}
+      />
+    </>
+  );
+});
+
+export default function ChatPanel({
+  messages,
+  participants,
+  authorsById,
+  host,
+  currentUserId,
+  isHost,
+  kickingUserId,
+  connected,
+  disabled,
+  historyLoading,
+  onSend,
+  onKick,
+}: ChatPanelProps) {
+  const [content, setContent] = useState('');
+
+  const usersById = useMemo(() => {
+    const users = new Map<
+      string,
+      WatchPartyHostSummary
+    >();
+
+    users.set(host.userId, host);
+
+    participants.forEach(({ user }) => {
+      users.set(user.userId, user);
+    });
+
+    return users;
+  }, [host, participants]);
+
+  const activeParticipantIds = useMemo(
+    () =>
+      new Set(
+        participants.map(({ user }) => user.userId),
+      ),
+    [participants],
+  );
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+
+    const trimmed = content.trim();
+
+    if (
+      !trimmed ||
+      trimmed.length > 500 ||
+      disabled
+    ) {
+      return;
+    }
+
+    if (onSend(trimmed)) {
+      setContent('');
+    }
+  };
+
+  return (
+    <section className="flex h-[620px] min-h-0 flex-col bg-gray-950/10 lg:h-full">
+      <div className="shrink-0 border-b border-gray-800 px-6 py-4 sm:px-8">
+        <div>
+          <h2 className="text-title2-b text-white">
+            실시간 채팅
+          </h2>
+
+          <p className="mt-1 text-caption1-m text-gray-500">
+            함께 보고 있는 사람들과 대화해보세요.
+          </p>
+        </div>
+      </div>
+
+      <ChatMessageList
+        messages={messages}
+        authorsById={authorsById}
+        usersById={usersById}
+        activeParticipantIds={activeParticipantIds}
+        host={host}
+        currentUserId={currentUserId}
+        isHost={isHost}
+        kickingUserId={kickingUserId}
+        historyLoading={historyLoading}
+        onKick={onKick}
+      />
+
       <form
         onSubmit={handleSubmit}
         className="flex shrink-0 gap-3 border-t border-gray-800 bg-gray-950/70 p-4 sm:px-6"
@@ -325,31 +416,14 @@ export default function ChatPanel({
 
         <Button
           type="submit"
-          disabled={disabled || !content.trim()}
+          disabled={
+            disabled || !content.trim()
+          }
           className="h-11 bg-pink-600 px-6 text-white hover:bg-pink-700"
         >
           전송
         </Button>
       </form>
-
-      <ConfirmDialog
-        open={kickTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setKickTarget(null);
-          }
-        }}
-        title="참여자 강퇴"
-        description={`${kickTarget?.name ?? '선택한 참여자'}님을 Watch Party에서 강퇴할까요?`}
-        confirmText="강퇴"
-        cancelText="취소"
-        variant="destructive"
-        onConfirm={() => {
-          if (kickTarget) {
-            onKick(kickTarget.userId);
-          }
-        }}
-      />
     </section>
   );
 }
