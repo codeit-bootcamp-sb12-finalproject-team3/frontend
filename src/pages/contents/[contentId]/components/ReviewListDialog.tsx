@@ -288,10 +288,18 @@ function ReviewItem({ review, onEdit, onDelete }: ReviewItemProps) {
       <div className="flex items-center justify-between mb-3.5">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
-            <div
-              className="w-[22px] h-[22px] rounded-full border border-white/10"
-              style={{ backgroundColor: getProfileColor(review.author.userId) }}
-            />
+            {review.author.profileImageUrl ? (
+              <img
+                src={review.author.profileImageUrl}
+                alt={`${review.author.name} 프로필`}
+                className="w-[22px] h-[22px] rounded-full object-cover border border-white/10"
+              />
+            ) : (
+              <div
+                className="w-[22px] h-[22px] rounded-full border border-white/10"
+                style={{ backgroundColor: getProfileColor(review.author.userId) }}
+              />
+            )}
             <span className="text-body2-sb text-gray-300">{review.author.name}</span>
           </div>
 
