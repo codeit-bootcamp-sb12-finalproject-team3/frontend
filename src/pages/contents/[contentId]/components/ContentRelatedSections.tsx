@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { ContentPlatformResponse, ContentResponse, PlaylistSummary, WatchPartyResponse, WatchPartySummaryResponse } from '@/lib/types';
 import { getContentPlatforms, getContentPlaylists, getContentWatchParties } from '@/lib/api/contents';
-import { joinWatchParty } from '@/lib/api/watch-parties';
+import { getWatchPartyJoinErrorMessage, joinWatchParty } from '@/lib/api/watch-parties';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import HorizontalCarousel from '@/pages/recommendations/components/HorizontalCarousel';
@@ -58,8 +58,8 @@ export default function ContentRelatedSections({ content }: ContentRelatedSectio
     try {
       await joinWatchParty(party.id);
       navigate(`/watch-parties/${party.id}`);
-    } catch {
-      toast.error('Watch Party에 참여하지 못했습니다.');
+    } catch (error) {
+      toast.error(getWatchPartyJoinErrorMessage(error));
     } finally {
       setJoiningPartyId(null);
     }
@@ -69,8 +69,8 @@ export default function ContentRelatedSections({ content }: ContentRelatedSectio
     try {
       const response = await getContentPlaylists(content.id);
       setPlaylists(response.data.slice(0, 20));
-    } catch {
-      toast.error('플레이리스트 위젯을 새로고침하지 못했습니다.');
+    } catch (error) {
+      toast.error(getWatchPartyJoinErrorMessage(error));
     }
   };
 

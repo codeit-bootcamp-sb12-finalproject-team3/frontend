@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { Clock3, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type {
   WatchPartyPlaybackControlRequest,
   WatchPartyPlaybackState,
 } from '@/lib/types';
+import { useServerClockOffset } from '@/lib/hooks/useServerClockOffset';
 
 interface PlaybackPanelProps {
   state: WatchPartyPlaybackState | null;
   isHost: boolean;
   connected: boolean;
+  poster?: ReactNode;   // 타이머 왼쪽에 놓을 포스터 (page가 만들어서 넘김)
   onControl: (
     request: WatchPartyPlaybackControlRequest,
   ) => boolean;
@@ -50,25 +52,27 @@ const formatElapsed = (milliseconds: number) => {
 };
 
 export default function PlaybackPanel({
-  state,
-  isHost,
-  connected,
-  onControl,
-}: PlaybackPanelProps) {
+                                        state,
+                                        isHost,
+                                        connected,
+                                        poster,
+                                        onControl,
+                                      }: PlaybackPanelProps) {
+  const clockOffset = useServerClockOffset();
   const [now, setNow] = useState(Date.now());
   const [seekTime, setSeekTime] = useState('');
   const [showSeek, setShowSeek] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (state?.status !== 'LIVE') return;
 
-    const interval = window.setInterval(
-      () => setNow(Date.now()),
-      1000,
-    );
+    // 서버 시계 기준 현재 시각으로 계산 (startedAt·pausedAt이 서버 시계 값이므로)
+    const tick = () => setNow(Date.now() + clockOffset);
+    tick();
+    const interval = window.setInterval(tick, 250);
 
     return () => window.clearInterval(interval);
-  }, [state?.status]);
+  }, [state?.status, clockOffset]);
 
   const elapsed = elapsedMs(state, now);
   const live = state?.status === 'LIVE';
@@ -84,7 +88,10 @@ export default function PlaybackPanel({
 
   return (
     <section className="w-full text-center">
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-5 2xl:gap-10">
+        {poster}
+        <div className="min-w-0">
+          <div className="flex items-center justify-center gap-3">
         <span
           className={`size-2.5 rounded-full ${
             live
@@ -120,21 +127,14 @@ export default function PlaybackPanel({
         </span>
       </div>
 
-      <div className="mt-5 font-mono text-[42px] font-semibold tracking-[0.06em] text-white sm:text-5xl">
-        {formatElapsed(elapsed)}
-      </div>
+          <div className="mt-3 font-mono text-[36px] font-semibold tracking-[0.06em] text-white 2xl:text-[42px]">
+            {formatElapsed(elapsed)}
+          </div>
 
-      {state?.startEpisode !== null &&
-        state?.startEpisode !== undefined && (
-          <p className="mt-2 text-caption1-m text-gray-500">
-            에피소드 {state.startEpisode} ~{' '}
-            {state.endEpisode}
-          </p>
-        )}
+          {isHost && (
+            <div className="mt-3 flex w-full flex-col items-center">
+              <div className="flex w-full gap-2">
 
-      {isHost && (
-        <div className="mt-6 flex flex-col items-center">
-          <div className="flex items-center justify-center gap-3">
             {paused ? (
               <Button
                 type="button"
@@ -142,7 +142,7 @@ export default function PlaybackPanel({
                 onClick={() =>
                   send({ action: 'PLAY' })
                 }
-                className="h-11 min-w-36 gap-2 bg-pink-600 px-6 text-white hover:bg-pink-700"
+                className="h-10 flex-1 gap-1.5 bg-pink-600 px-3 text-white hover:bg-pink-700"
               >
                 <Play className="size-4 fill-current" />
                 재생
@@ -156,7 +156,7 @@ export default function PlaybackPanel({
                 onClick={() =>
                   send({ action: 'PAUSE' })
                 }
-                className="h-11 min-w-36 gap-2 bg-pink-600 px-6 text-white hover:bg-pink-700"
+                className="h-10 flex-1 gap-1.5 bg-pink-600 px-3 text-white hover:bg-pink-700"
               >
                 <Pause className="size-4 fill-current" />
                 일시정지
@@ -174,7 +174,7 @@ export default function PlaybackPanel({
               onClick={() =>
                 setShowSeek((current) => !current)
               }
-              className="h-11 gap-2 border-gray-700 px-5 text-gray-300 hover:bg-gray-800"
+              className="h-10 flex-1 gap-1.5 border-gray-700 px-3 text-gray-300 hover:bg-gray-800"
             >
               <Clock3 className="size-4" />
               시간 이동
@@ -225,6 +225,8 @@ export default function PlaybackPanel({
           )}
         </div>
       )}
+        </div>
+      </div>
     </section>
   );
 }

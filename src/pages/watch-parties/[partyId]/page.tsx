@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBlocker, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Bell, BellRing, CalendarClock, Clock3, Users, } from 'lucide-react';
+import { ArrowLeft, Bell, BellRing, CalendarClock, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import icProfileDefault from '@/assets/ic_profile_default.svg';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,9 @@ import {
   endWatchParty,
   getWatchParty,
   getWatchPartyChatMessages,
+  getWatchPartyJoinErrorMessage,
   getWatchPartyParticipants,
+  getWatchPartyReminderErrorMessage,
   joinWatchParty,
   kickWatchPartyParticipant,
   leaveWatchParty,
@@ -27,7 +29,9 @@ import type {
   WatchPartyResponse,
 } from '@/lib/types';
 import ChatPanel from './components/ChatPanel';
+import ParticipantPanel from './components/ParticipantPanel';
 import PlaybackPanel from './components/PlaybackPanel';
+import { getParticipantDisplay } from '@/lib/utils/watch-party';
 
 
 const STATUS_LABELS = {
@@ -46,7 +50,8 @@ const toPlaybackState = (party: WatchPartyResponse): WatchPartyPlaybackState | n
     startEpisode: party.startEpisode,
     endEpisode: party.endEpisode,
     hostId: party.host.userId,
-    updatedAt: Date.now(),
+    // REST 스냅샷은 순서 비교 기준이 없으므로 0 → 이후 실시간(서버 시각) 메시지가 항상 덮어씀
+    updatedAt: 0,
   };
 };
 
@@ -207,9 +212,15 @@ export default function WatchPartyRoomPage() {
     };
   }, [loadParty]);
 
+  // 입장 로직은 "어느 파티인지"가 바뀔 때만 다시 돌도록, party 객체 대신 필요한 값만 꺼내 둔다
+  const loadedPartyId = party?.id;
+  const hostUserId = party?.host.userId;
+  const partyEndedRef = useRef(false);
+  partyEndedRef.current = party?.status === 'ENDED';
+
   useEffect(() => {
     const currentUserId = authentication?.userDto.id;
-    if (!partyId || !party || party.id !== partyId || !currentUserId) return;
+    if (!partyId || loadedPartyId !== partyId || !hostUserId || !currentUserId) return;
 
     const sequence = ++roomRequestSequence.current;
     setRoomReady(false);
@@ -217,20 +228,22 @@ export default function WatchPartyRoomPage() {
 
     const prepareRoom = async () => {
       try {
-        if (currentUserId !== party.host.userId) {
+        // 종료된 방은 참가 요청 없이 보기만 (서버가 409로 거절함)
+        if (currentUserId !== hostUserId && !partyEndedRef.current) {
           await joinWatchParty(partyId);
         }
         if (sequence !== roomRequestSequence.current) return;
 
         hasLeft.current = false;
         setRoomReady(true);
+        if (partyEndedRef.current) return; // 종료된 방은 종료 화면만 보여 주므로 채팅·참여자는 불러오지 않음
         void loadChatHistory();
         void loadParticipants();
       } catch (requestError) {
         if (sequence !== roomRequestSequence.current) return;
         console.error(requestError);
         setRoomReady(false);
-        setRoomError('Watch Party에 참여하지 못했습니다. 참여 상태와 정원을 확인해주세요.');
+        setRoomError(getWatchPartyJoinErrorMessage(requestError));
       }
     };
 
@@ -238,8 +251,7 @@ export default function WatchPartyRoomPage() {
     return () => {
       roomRequestSequence.current += 1;
     };
-  }, [authentication?.userDto.id, loadChatHistory, loadParticipants, party, partyId, roomAttempt]);
-
+  }, [authentication?.userDto.id, loadChatHistory, loadParticipants, loadedPartyId, hostUserId, partyId, roomAttempt]);
   useEffect(() => {
     const currentUserId = authentication?.userDto.id;
     if (currentUserId) void fetchReminders(currentUserId);
@@ -248,6 +260,11 @@ export default function WatchPartyRoomPage() {
   const handlePlayback = useCallback((state: WatchPartyPlaybackState) => {
     realtimePlaybackReceived.current = true;
     setPlayback((current) => !current || state.updatedAt >= current.updatedAt ? state : current);
+    setParty((current) => {
+      if (!current || current.status === 'ENDED') return current;
+      const nextStatus = state.status === 'ENDED' ? 'ENDED' : 'LIVE';
+      return current.status === nextStatus ? current : { ...current, status: nextStatus };
+    });
   }, []);
 
   const handleChat = useCallback((message: WatchPartyChatMessage) => {
@@ -281,8 +298,9 @@ export default function WatchPartyRoomPage() {
     toast.error(message || '실시간 요청을 처리하지 못했습니다.');
   }, []);
 
-  const { connected, connecting, sendChat, controlPlayback } = useWatchPartyRealtime({
-    partyId: roomReady ? party?.id : undefined,
+  const { connected, sendChat, controlPlayback } = useWatchPartyRealtime({
+    // 종료된 파티는 서버가 구독을 거절하므로 연결하지 않는다
+    partyId: roomReady && party?.status !== 'ENDED' ? party?.id : undefined,
     accessToken: authentication?.accessToken,
     onPlayback: handlePlayback,
     onChat: handleChat,
@@ -313,6 +331,7 @@ export default function WatchPartyRoomPage() {
   const navigationBlocker = useBlocker(({ currentLocation, nextLocation }) =>
     Boolean(
       party
+      && party.status !== 'ENDED'
       && !isHost
       && roomReady
       && !hasLeft.current
@@ -360,7 +379,7 @@ export default function WatchPartyRoomPage() {
       await endWatchParty(partyId);
       const now = Date.now();
       setParty((current) => current ? { ...current, status: 'ENDED', endedAt: new Date(now).toISOString() } : current);
-      setPlayback((current) => current ? { ...current, status: 'ENDED', updatedAt: now } : current);
+      // 타이머의 종료 시점은 서버가 보내는 ENDED 메시지(서버 시계)로 갱신
       toast.success('Watch Party를 종료했습니다.');
     } catch (requestError) {
       console.error(requestError);
@@ -415,7 +434,8 @@ export default function WatchPartyRoomPage() {
       }
     } catch (requestError) {
       console.error(requestError);
-      toast.error(registered ? '알림을 해제하지 못했습니다.' : '알림을 등록하지 못했습니다.');
+      toast.error(getWatchPartyReminderErrorMessage(requestError, !registered));
+      void loadParty();
     }
   };
 
@@ -440,11 +460,29 @@ export default function WatchPartyRoomPage() {
       </div>
     );
   }
+  if (party.status === 'ENDED') {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-3 px-8 text-center">
+        <p className="text-body3-m text-gray-500">{party.content.title}</p>
+        <h1 className="text-title1-b text-white">{party.title}</h1>
+        <p className="mt-2 text-body2-m text-gray-300">종료된 파티입니다.</p>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/watch-parties')}
+          className="mt-4 border-gray-600 text-gray-200"
+        >
+          Watch Party 목록으로
+        </Button>
+      </div>
+    );
+  }
 
-  const chatDisabled = !connected || party.status === 'ENDED';
-  const participantCount = participantsError || (participantsLoading && participants.length === 0)
+  const chatDisabled = !connected
+  // 참여자 목록·서버 인원 모두 게스트만 셈(방장은 참여자로 저장 안 됨)
+  const guestCount = participantsError || (participantsLoading && participants.length === 0)
     ? party.currentParticipantCount
     : participants.length;
+  const participantDisplay = getParticipantDisplay(party.status, guestCount);
   const reminderRegistered = scheduledPartyIds.has(party.id);
   const reminderMutating = reminderMutatingPartyIds.has(party.id);
 
@@ -462,6 +500,12 @@ export default function WatchPartyRoomPage() {
               <span className="truncate text-body3-m text-gray-500">{party.content.title}</span>
             </div>
             <h1 className="mt-2 truncate text-title1-b text-white sm:text-header2-b">{party.title}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-body3-m text-gray-500">
+              <span className="flex items-center gap-1.5"><CalendarClock className="size-4" />{new Date(party.scheduledAt).toLocaleString('ko-KR')}</span>
+              <span className="flex items-center gap-1.5"><Clock3 className="size-4" />예정 시간 {party.sessionDurationMinutes}분</span>
+              {party.startEpisode !== null && <span>에피소드 {party.startEpisode} ~ {party.endEpisode}</span>}
+            </div>
+            {party.description && <p className="mt-1 line-clamp-1 text-body3-m text-gray-500">{party.description}</p>}
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
             <div className="flex items-center gap-2 border-r border-gray-800 pr-3">
@@ -485,65 +529,45 @@ export default function WatchPartyRoomPage() {
           )}
           {isHost && party.status === 'SCHEDULED' && <Button onClick={handleStart} disabled={statusChanging} className="bg-pink-600 text-white hover:bg-pink-700">{statusChanging ? '처리 중...' : '파티 시작'}</Button>}
           {isHost && party.status === 'LIVE' && <Button variant="destructive" onClick={handleEnd} disabled={statusChanging}>{statusChanging ? '처리 중...' : '파티 종료'}</Button>}
-          {!isHost && party.status !== 'ENDED' && <Button variant="outline" onClick={handleLeave} disabled={leaving} className="border-gray-600 text-gray-200">{leaving ? '퇴장 중...' : '파티 퇴장'}</Button>}
+          {!isHost && <Button variant="outline" onClick={handleLeave} disabled={leaving} className="border-gray-600 text-gray-200">{leaving ? '퇴장 중...' : '파티 퇴장'}</Button>}
           </div>
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(400px,40%)_minmax(0,60%)] lg:overflow-hidden">
-        <section className="flex flex-col items-center overflow-y-auto px-6 py-8 sm:px-10 lg:px-8 xl:px-12">
-          <div className="w-full max-w-[330px] overflow-hidden rounded-2xl bg-gray-900 shadow-2xl shadow-black/30">
-            <div className="aspect-[4/3]">
-              {party.content.thumbnailUrl ? <img src={party.content.thumbnailUrl} alt={party.content.title} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-body3-m text-gray-500">이미지 없음</div>}
-            </div>
-          </div>
-          <p className="mt-5 max-w-full truncate text-center text-body1-b text-gray-100">{party.content.title}</p>
-
-          <div className="mt-7 w-full max-w-xl">
-          <PlaybackPanel state={playback} isHost={isHost} connected={connected} onControl={controlPlayback} />
+      <main className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(400px,40%)_minmax(0,60%)] lg:overflow-hidden scrollbar-subtle">
+        <section className="flex flex-col items-center overflow-y-auto px-6 py-8 sm:px-10 lg:px-6 scrollbar-subtle">
+          <div className="w-full max-w-xl">
+            <PlaybackPanel
+              state={playback}
+              isHost={isHost}
+              connected={connected}
+              onControl={controlPlayback}
+              poster={
+                <div className="shrink-0 overflow-hidden rounded-xl bg-gray-900 shadow-lg shadow-black/30">
+                  {party.content.thumbnailUrl
+                    ? <img src={party.content.thumbnailUrl} alt={party.content.title} className="block h-auto max-h-30 w-auto max-w-28 2xl:max-h-44 2xl:max-w-44" />
+                    : <div className="flex aspect-[4/3] w-28 items-center justify-center text-caption1-m text-gray-500">이미지 없음</div>}
+                </div>
+              }
+            />
           </div>
 
           <div className="mt-8 w-full max-w-xl border-t border-gray-800 pt-6">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex size-10 items-center justify-center rounded-full bg-gray-900 text-gray-300">
-                <Users className="size-5" />
-              </span>
-
-              <div className="min-w-0">
-                <p className="text-body3-m text-gray-500">
-                  함께 보는 중
-                </p>
-
-                <p className="mt-1 flex items-baseline gap-1 text-white">
-                  <span className="text-[30px] font-bold leading-none tracking-tight">
-                    {participantCount.toLocaleString('ko-KR')}
-                  </span>
-                  <span className="text-body2-b text-gray-300">명 참여 중</span>
-                </p>
-              </div>
-            </div>
-
-            {participantsError && (
-              <button
-                type="button"
-                onClick={() => void loadParticipants()}
-                className="mt-3 text-caption1-b text-pink-300 hover:text-pink-200"
-              >
-                참여자 정보를 다시 불러오기
-              </button>
-            )}
+            <ParticipantPanel
+              host={party.host}
+              participants={participants}
+              participantCount={participantDisplay?.count ?? 0}
+              participantLabel={participantDisplay?.label ?? '명 참여'}
+              currentUserId={authentication?.userDto.id}
+              isHost={isHost}
+              loading={participantsLoading}
+              error={participantsError}
+              kickingUserId={kickingUserId}
+              onRetry={() => void loadParticipants()}
+              onKick={(userId) => void handleKick(userId)}
+            />
           </div>
 
-          <div className="mt-8 w-full max-w-xl border-t border-gray-800 pt-5 text-body3-m text-gray-500">
-            {party.description && <p className="mb-4 leading-6">{party.description}</p>}
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              <span className="flex items-center gap-2"><CalendarClock className="size-4" />{new Date(party.scheduledAt).toLocaleString('ko-KR')}</span>
-              <span className="flex items-center gap-2"><Clock3 className="size-4" />예정 시간 {party.sessionDurationMinutes}분</span>
-              <span>최대 {party.maxParticipants}명</span>
-              {party.startEpisode !== null && <span>에피소드 {party.startEpisode} ~ {party.endEpisode}</span>}
-            </div>
-            {connecting && <p className="mt-3 text-caption1-m text-gray-500">실시간 서버에 연결하는 중입니다.</p>}
-          </div>
         </section>
 
         <section className="min-h-0 border-t border-gray-800 lg:border-l lg:border-t-0">

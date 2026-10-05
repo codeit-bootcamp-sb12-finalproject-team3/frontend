@@ -141,7 +141,7 @@ export default function ChatPanel({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6 sm:px-8"
+        className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6 sm:px-8 scrollbar-subtle"
       >
         {historyLoading && messages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-body3-m text-gray-500">
@@ -172,9 +172,9 @@ export default function ChatPanel({
             return (
               <div
                 key={`${message.sentAt}-${message.senderId}-${index}`}
-                className="flex items-start gap-3"
+                className={`flex items-start gap-3 ${mine ? 'justify-end' : ''}`}
               >
-                {user ? (
+                {!mine && (user ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -258,31 +258,27 @@ export default function ChatPanel({
                     alt=""
                     className="size-10 shrink-0 rounded-full object-cover opacity-70"
                   />
-                )}
+                ))}
 
                 <div className="min-w-0 max-w-[78%]">
-                  <div className="mb-1.5 flex items-center gap-1.5">
-                    <span className="truncate text-body3-b text-gray-200">
-                      {user?.name ?? '알 수 없는 참여자'}
-                    </span>
-
-                    {senderIsHost && (
-                      <Crown className="size-3.5 text-pink-400" />
-                    )}
-
-                    {mine && (
-                      <span className="text-caption1-m text-gray-600">
-                        나
+                  {!mine && (
+                    <div className="mb-1.5 flex items-center gap-1.5">
+                      <span className="truncate text-body3-b text-gray-200">
+                        {user?.name ?? '알 수 없는 참여자'}
                       </span>
-                    )}
-                  </div>
 
-                  <div className="flex items-end gap-2">
+                      {senderIsHost && (
+                        <Crown className="size-3.5 text-pink-400" />
+                      )}
+                    </div>
+                  )}
+
+                  <div className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : ''}`}>
                     <div
-                      className={`w-fit max-w-full rounded-2xl rounded-tl-md px-4 py-2.5 ${
+                      className={`w-fit max-w-full rounded-2xl px-4 py-2.5 ${
                         mine
-                          ? 'bg-pink-600/90 text-white'
-                          : 'bg-gray-800 text-gray-100'
+                          ? 'rounded-tr-md bg-pink-600/90 text-white'
+                          : 'rounded-tl-md bg-gray-800 text-gray-100'
                       }`}
                     >
                       <p className="break-words text-body3-m leading-6">

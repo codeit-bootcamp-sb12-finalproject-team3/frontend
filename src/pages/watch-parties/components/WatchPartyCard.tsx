@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/lib/stores/useAuthStore';
 import useWatchPartyReminderStore from '@/lib/stores/useWatchPartyReminderStore';
 import type { WatchPartyStatus, WatchPartySummaryResponse } from '@/lib/types';
+import { getParticipantDisplay } from '@/lib/utils/watch-party';
+import { getWatchPartyReminderErrorMessage } from '@/lib/api/watch-parties';
 
 const STATUS_LABELS: Record<WatchPartyStatus, string> = {
   LIVE: '진행 중',
@@ -42,9 +44,9 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
   const fetchReminders = useWatchPartyReminderStore((state) => state.fetch);
   const setReminder = useWatchPartyReminderStore((state) => state.setReminder);
   const cancelReminder = useWatchPartyReminderStore((state) => state.cancelReminder);
-  const full = party.currentParticipantCount >= party.maxParticipants;
   const ended = party.status === 'ENDED';
   const isHost = party.host.userId === currentUserId;
+  const participantDisplay = getParticipantDisplay(party.status, party.currentParticipantCount);
   const reminderRegistered = scheduledPartyIds.has(party.id);
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
       }
     } catch (error) {
       console.error(error);
-      toast.error(reminderRegistered ? '알림을 해제하지 못했습니다.' : '알림을 등록하지 못했습니다.');
+      toast.error(getWatchPartyReminderErrorMessage(error, !reminderRegistered));
     }
   };
 
@@ -98,10 +100,12 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
             <CalendarClock className="h-4 w-4" />
             <span>{formatScheduledAt(party.scheduledAt)}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span>{party.currentParticipantCount.toLocaleString()} / {party.maxParticipants.toLocaleString()}명</span>
-          </div>
+          {participantDisplay && (
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>{participantDisplay.count.toLocaleString('ko-KR')}{participantDisplay.label}</span>
+            </div>
+          )}
         </div>
         {!isHost && party.status === 'SCHEDULED' && (
           <Button
@@ -118,10 +122,10 @@ export default function WatchPartyCard({ party, joining, onJoin }: WatchPartyCar
         <Button
           type="button"
           onClick={() => onJoin(party)}
-          disabled={joining || full || ended}
+          disabled={joining || ended}
           className="h-11 w-full rounded-xl bg-pink-600 text-body3-b text-white hover:bg-pink-700"
         >
-          {joining ? '참여 중...' : ended ? '종료된 파티' : full ? '정원 마감' : '참여하기'}
+          {joining ? '참여 중...' : ended ? '종료된 파티' : isHost ? '입장하기' : '참여하기'}
         </Button>
       </div>
     </article>
