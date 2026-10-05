@@ -137,9 +137,9 @@ export default function SignInForm() {
 
       {/* Social Login Divider */}
       <div className="relative flex items-center gap-3 py-6">
-        <div className="h-px flex-1 bg-[#212126]" />
+        <div className="h-px flex-1 bg-[#18191B]" />
         <span className="text-body2-m text-[#565666]">or</span>
-        <div className="h-px flex-1 bg-[#212126]" />
+        <div className="h-px flex-1 bg-[#18191B]" />
       </div>
 
       {/* Social Login Buttons */}
