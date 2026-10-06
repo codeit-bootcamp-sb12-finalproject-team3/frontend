@@ -280,7 +280,6 @@ export default function ContentCard({ content }: ContentCardProps) {
               <span className={liked ? 'font-bold text-white' : 'text-[#FF8C9D]'}>
                 {likeCount.toLocaleString()}
               </span>
-            </button>
           </button>
         </div>
       </article>
