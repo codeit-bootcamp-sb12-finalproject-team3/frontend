@@ -267,10 +267,20 @@ export default function ContentCard({ content }: ContentCardProps) {
             disabled={likeLoading}
             aria-label={liked ? `좋아요 취소, 현재 ${likeCount.toLocaleString()}개` : `좋아요, 현재 ${likeCount.toLocaleString()}개`}
             aria-pressed={liked}
-            className={`flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-full border px-2.5 text-caption1-sb shadow-lg backdrop-blur-md transition disabled:cursor-wait disabled:opacity-70 ${liked ? 'border-[#FF4A64] bg-[#FF4A64] text-white hover:bg-[#E5435A]' : 'border-[#FF4A64]/70 bg-black/55 text-[#FF8C9D] hover:bg-[#FF4A64]/10'}`}
-          >
-            <Heart className="size-4" fill={liked ? 'currentColor' : 'none'} />
-            <span className="text-[#FF8C9D]">{likeCount.toLocaleString()}</span>
+            className={`flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-full border px-2.5 text-caption1-sb shadow-lg backdrop-blur-md transition disabled:cursor-wait disabled:opacity-90 ${
+              liked
+                ? 'border-[#FF4A64] bg-[#FF4A64] text-white hover:bg-[#E5435A]'
+                : 'border-[#FF4A64]/70 bg-black/55 text-[#FF8C9D] hover:bg-[#FF4A64]/10'
+            }`}
+            >
+              <Heart
+                className="size-4"
+                fill={liked ? 'currentColor' : 'none'}
+              />
+              <span className={liked ? 'font-bold text-white' : 'text-[#FF8C9D]'}>
+                {likeCount.toLocaleString()}
+              </span>
+            </button>
           </button>
         </div>
       </article>
