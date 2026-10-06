@@ -267,10 +267,12 @@ export default function ContentCard({ content }: ContentCardProps) {
             disabled={likeLoading}
             aria-label={liked ? `좋아요 취소, 현재 ${likeCount.toLocaleString()}개` : `좋아요, 현재 ${likeCount.toLocaleString()}개`}
             aria-pressed={liked}
-            className={`flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-full border px-2.5 text-caption1-sb shadow-lg backdrop-blur-md transition disabled:cursor-wait disabled:opacity-70 ${liked ? 'border-pink-500 bg-pink-500 text-white hover:bg-pink-600' : 'border-pink-500/70 bg-black/55 text-pink-300 hover:bg-pink-500/10'}`}
+            className={`flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-full border px-2.5 text-caption1-sb shadow-lg backdrop-blur-md transition disabled:cursor-wait disabled:opacity-90 ${liked ? 'border-pink-500 bg-pink-500 text-white hover:bg-pink-600' : 'border-pink-500/70 bg-black/55 text-pink-300 hover:bg-pink-500/10'}`}
           >
             <Heart className="size-4" fill={liked ? 'currentColor' : 'none'} />
-            <span>{likeCount.toLocaleString()}</span>
+            <span className={liked ? 'font-bold text-white' : ''}>
+              {likeCount.toLocaleString()}
+            </span>
           </button>
         </div>
       </article>

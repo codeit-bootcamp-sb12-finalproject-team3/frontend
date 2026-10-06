@@ -316,3 +316,27 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-gray-800) transparent;
 }
+
+/* Global dark scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #34343d #131316;
+}
+
+*::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #131316;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #34343d;
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #565666;
+}
