@@ -4,7 +4,7 @@
 /* Design System Colors - Figma Tokens */
 @theme {
   /* Base Colors */
-  --color-background: #010102;
+  --color-background: #232324;
   --color-white: #ffffff;
 
   /* Gray Scale (11 steps) */
@@ -17,21 +17,21 @@
   --color-gray-600: #676777;
   --color-gray-700: #565666;
   --color-gray-800: #34343d;
-  --color-gray-900: #212126;
-  --color-gray-950: #131316;
+  --color-gray-900: #18191B;
+  --color-gray-950: #18191B;
 
-  /* Pink (Brand) Scale (11 steps) */
-  --color-pink-50: #ffe9ec;
-  --color-pink-100: #ffd0d6;
-  --color-pink-200: #ffb5be;
-  --color-pink-300: #ff8c9d;
-  --color-pink-400: #ff687e;
-  --color-pink-500: #ff4a64;
-  --color-pink-600: #e5435a;
-  --color-pink-700: #cc3c50;
-  --color-pink-800: #b13446;
-  --color-pink-900: #8d2b3a;
-  --color-pink-950: #5e1c25;
+  /* Mint (Brand) Scale (11 steps) */
+  --color-pink-50: #E6F8F7;
+  --color-pink-100: #CCF1EF;
+  --color-pink-200: #99E3DF;
+  --color-pink-300: #66D5CF;
+  --color-pink-400: #33C7BF;
+  --color-pink-500: #00A9A2;
+  --color-pink-600: #009892;
+  --color-pink-700: #008780;
+  --color-pink-800: #00766F;
+  --color-pink-900: #005D58;
+  --color-pink-950: #003F3C;
 
   /* Semantic Colors */
   --color-red-notification: #ce0045;
@@ -54,7 +54,7 @@
   --popover: 0 0% 100%;
   --popover-foreground: 220 5% 8%;
 
-  --primary: 348 100% 64%;
+  --primary: 178 100% 33%;
   --primary-foreground: 0 0% 100%;
 
   --secondary: 220 4% 93%;
@@ -71,7 +71,7 @@
 
   --border: 220 6% 87%;
   --input: 220 6% 87%;
-  --ring: 348 100% 64%;
+  --ring: 178 100% 33%;
 
   --radius: 0.5rem;
 }
@@ -86,7 +86,7 @@
   --popover: 220 5% 8%;
   --popover-foreground: 220 4% 93%;
 
-  --primary: 348 100% 64%;
+  --primary: 178 100% 33%;
   --primary-foreground: 0 0% 100%;
 
   --secondary: 220 5% 13%;
@@ -103,7 +103,7 @@
 
   --border: 220 5% 21%;
   --input: 220 5% 21%;
-  --ring: 348 100% 64%;
+  --ring: 178 100% 33%;
 }
 
 body {

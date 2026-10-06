@@ -284,7 +284,7 @@ function ReviewItem({ review, onEdit, onDelete }: ReviewItemProps) {
   };
 
   return (
-    <div className="border-b border-[#212126] py-6 first:pt-6">
+    <div className="border-b border-[#18191B] py-6 first:pt-6">
       <div className="flex items-center justify-between mb-3.5">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">

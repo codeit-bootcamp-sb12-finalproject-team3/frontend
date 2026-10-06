@@ -155,7 +155,7 @@ export default function ContentCard({ content }: ContentCardProps) {
           to={`/contents/${content.id}`}
           onClick={rememberScrollPosition}
           aria-label={`${content.title} 상세 보기`}
-          className="block cursor-pointer overflow-hidden rounded-[22px] border border-white/[0.07] bg-gray-950/80 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition duration-300 hover:border-pink-500/45 hover:shadow-[0_20px_55px_rgba(255,74,100,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
+          className="block cursor-pointer overflow-hidden rounded-[22px] border border-white/[0.07] bg-gray-950/80 shadow-[0_18px_45px_rgba(0,0,0,0.22)] transition duration-300 hover:border-pink-500/45 hover:shadow-[0_20px_55px_rgba(0,169,162,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
         >
         {/* Thumbnail Container */}
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-gray-900">
@@ -267,12 +267,20 @@ export default function ContentCard({ content }: ContentCardProps) {
             disabled={likeLoading}
             aria-label={liked ? `좋아요 취소, 현재 ${likeCount.toLocaleString()}개` : `좋아요, 현재 ${likeCount.toLocaleString()}개`}
             aria-pressed={liked}
-            className={`flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-full border px-2.5 text-caption1-sb shadow-lg backdrop-blur-md transition disabled:cursor-wait disabled:opacity-90 ${liked ? 'border-pink-500 bg-pink-500 text-white hover:bg-pink-600' : 'border-pink-500/70 bg-black/55 text-pink-300 hover:bg-pink-500/10'}`}
-          >
-            <Heart className="size-4" fill={liked ? 'currentColor' : 'none'} />
-            <span className={liked ? 'font-bold text-white' : ''}>
-              {likeCount.toLocaleString()}
-            </span>
+            className={`flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-full border px-2.5 text-caption1-sb shadow-lg backdrop-blur-md transition disabled:cursor-wait disabled:opacity-90 ${
+              liked
+                ? 'border-[#FF4A64] bg-[#FF4A64] text-white hover:bg-[#E5435A]'
+                : 'border-[#FF4A64]/70 bg-black/55 text-[#FF8C9D] hover:bg-[#FF4A64]/10'
+            }`}
+            >
+              <Heart
+                className="size-4"
+                fill={liked ? 'currentColor' : 'none'}
+              />
+              <span className={liked ? 'font-bold text-white' : 'text-[#FF8C9D]'}>
+                {likeCount.toLocaleString()}
+              </span>
+            </button>
           </button>
         </div>
       </article>

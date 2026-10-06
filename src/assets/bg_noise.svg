@@ -1,6 +1,6 @@
 <svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g clip-path="url(#clip0_4154_6112)">
-<rect width="1920" height="1080" fill="#010102"/>
+<rect width="1920" height="1080" fill="#232324"/>
 <g filter="url(#filter0_f_4154_6112)">
 <rect x="-32" y="642" width="914" height="914" rx="457" fill="url(#paint0_radial_4154_6112)" fill-opacity="0.24"/>
 </g>
@@ -28,16 +28,16 @@
 <feGaussianBlur stdDeviation="50" result="effect1_foregroundBlur_4154_6112"/>
 </filter>
 <radialGradient id="paint0_radial_4154_6112" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(425 1099) rotate(90) scale(457)">
-<stop stop-color="#479169"/>
-<stop offset="1" stop-color="#010102"/>
+<stop stop-color="#232324"/>
+<stop offset="1" stop-color="#232324"/>
 </radialGradient>
 <radialGradient id="paint1_radial_4154_6112" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1791.5 253.5) rotate(90) scale(340.5)">
-<stop stop-color="#E14C00"/>
-<stop offset="1" stop-color="#010102"/>
+<stop stop-color="#232324"/>
+<stop offset="1" stop-color="#232324"/>
 </radialGradient>
 <radialGradient id="paint2_radial_4154_6112" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(471 88) rotate(90) scale(402)">
-<stop stop-color="#5696B8"/>
-<stop offset="1" stop-color="#010102"/>
+<stop stop-color="#232324"/>
+<stop offset="1" stop-color="#232324"/>
 </radialGradient>
 <clipPath id="clip0_4154_6112">
 <rect width="1920" height="1080" fill="white"/>
